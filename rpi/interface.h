@@ -24,8 +24,8 @@ private:
 public:
     SocketCAN(const std::string &interface_name, int bitrate);
     ~SocketCAN();
-    //void cansend(const struct can_frame &frame);
-    void cansend(json j);
+    void cansend(const struct can_frame &frame); 
+    // void cansend(json j);
     struct can_frame canread();
     void canfilterEnable();
     void canfilterDisable();

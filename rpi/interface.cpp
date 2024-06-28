@@ -56,11 +56,11 @@ SocketCAN::~SocketCAN()
     close(socket_ctrl);
 }
 
-// void SocketCAN::cansend(const struct can_frame &frame)
-// {
-//     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
-//         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
-// }
+void SocketCAN::cansend(const struct can_frame &frame)
+{
+    if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
+        throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
+}
 
 // void SocketCAN::cansend(const json j)
 // {
@@ -72,7 +72,7 @@ SocketCAN::~SocketCAN()
 //     for (int i = 0; i < frame.can_dlc; i++)
 //     {
 
-//            // frame.data[i] =
+//            // frame.data[i] 
 //     }
 //     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
 //         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
@@ -531,7 +531,6 @@ json Serial::serialreceive()
         message += ch_message;
     }
 
-    // Is message empty
     if (message.empty())
     {
         throw std::runtime_error("Received empty message.");
