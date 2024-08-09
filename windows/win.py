@@ -10,19 +10,27 @@ ser = serial.Serial("COM11", 115200,
     )
 
 # Creating a python object
-# This cannot be parsed in right way
-data = {{"method","read"},{"bitrate",250000},
-        {"id", 123},{"dlc", 4},
-        {"data","[0x11,0x22,0x33,0x44]"}
-        }
+# Cannot be parsed the right way
+# data = {{"method","read"},{"bitrate",250000},
+#         {"id", "0x123"},{"dlc", 4},
+#         {"data","[0x11,0x22,0x33,0x44]"}
+#         }
 # Unable to do this
-# data_raw = R"({"method":"read","bitrate":250000,"id":123,"dlc":4,"data":"{0x11,0x22,0x33,0x44}"})" 
-# data = {"method":"read","bitrate":250000,"id":123,"dlc":4,"data":"[0x11,0x22,0x33,0x44]"}
-data = json.dumps(data)+'\n'
+# data_raw = R"({"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"{0x11,0x22,0x33,0x44}"})" 
+# 1 - Able to do this
+# data = {"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"[0x11,0x22,0x33,0x44]"}
+# 2 - Able to do this and I probably will
+data = 'R"({"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"[0x11,0x22,0x33,0x44]"})"'
+# probati i sa ovim
+#data +=str('\n')
+# 3 - Able to to this but cannot parse 
+# data = '{"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"[0x11,0x22,0x33,0x44]"}'
+# data = json.dumps(data)
 
 # print JSON string
 print(data)
 # Send over serial
 while True:
-    ser.write(data.encode('utf-8'))
+    val=ser.write(data.encode('utf-8'))
+    print(f"Bytes written: {val}")
 
