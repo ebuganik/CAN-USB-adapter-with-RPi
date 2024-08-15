@@ -1,5 +1,4 @@
 #pragma once
-
 #include <stdio.h>
 #include <string>
 #include <linux/can.h>
@@ -7,8 +6,8 @@
 #include <linux/can/netlink.h>
 #include <net/if.h>
 #include <termios.h>
-//#include "nlohmann/json.hpp" 
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp" 
+//#include "./ext_lib/json.hpp" 
 
 using json = nlohmann::json;
 /* SocketCAN class to handle CAN bus communication */
@@ -41,6 +40,7 @@ public:
 };
 
 /* Termios class to handle serial communicaton */
+
 class Serial
 {
     int serial_fd;

@@ -7,17 +7,11 @@
 #include <cerrno>
 #include <cstring>
 #include <sstream>
-#include <string.h>
 #include <iomanip>
 #include <iostream>
-#include <stdlib.h>
-#include <chrono>
-#include <thread>
 #include <fcntl.h>
-#include <termios.h>
 
 using namespace std;
-using namespace std::this_thread;
 // using json = nlohmann::json;
 
 SocketCAN::SocketCAN(const std::string &interface_name, int bitrate)
@@ -62,6 +56,7 @@ void SocketCAN::cansend(const struct can_frame &frame)
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
 }
 
+/* TODO: function to send given JSON string as frame on CAN bus - example in jsontest.cpp */
 // void SocketCAN::cansend(const json j)
 // {
 //     /* Setting up CAN frame to send */
@@ -93,6 +88,7 @@ struct can_frame SocketCAN::canread()
     return frame;
 }
 
+/* TODO: change this in case user wants to read frames with given CAN ID */
 void SocketCAN::canfilterEnable()
 {
     /* CAN reception filter */
@@ -333,8 +329,8 @@ std::string SocketCAN::getTransceiverStatus(__u8 status_error)
 /* TODO: return value should be message to be sent to serial */
 void SocketCAN::frameAnalyzer(const struct can_frame &frame)
 {
-    /* Check if it's a remote transfer request frame, error frame or regular frame
-    Send log message and status to serial port */
+    // Check if it's a remote transfer request frame, error frame or regular frame
+    //Send log message and status to serial port 
     Serial inform;
     if (frame.can_id & CAN_RTR_FLAG)
     {
@@ -436,19 +432,36 @@ Serial::Serial()
     serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NDELAY);
     if (serial_fd < 0)
         throw std::runtime_error("Failed to open serial port. Check if it is used by another device. " + std::string(strerror(errno)));
+    struct termios config;
 
     /* Make raw config */
+    tcgetattr(serial_fd, &config);	
     cfmakeraw(&config);
 
     /* Set input and output speed */
     cfsetispeed(&config, B115200);
     cfsetospeed(&config, B115200);
 
+    // Need to add some flags, check them too
+    config.c_cflag &= ~PARENB;   
+	config.c_cflag &= ~CSTOPB;   
+	config.c_cflag &= ~CSIZE;	 
+	config.c_cflag |=  CS8;
+
+    config.c_cflag &= ~CRTSCTS;       
+	config.c_cflag |= CREAD | CLOCAL; 
+
+	config.c_iflag &= ~(IXON | IXOFF | IXANY);          
+	config.c_iflag &=~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);                          
+
+
+
     /* Apply config immediately */
     if (tcsetattr(serial_fd, TCSANOW, &config) < 0)
     {
         throw std::runtime_error("Unable to set serial configuration.\n");
     }
+    tcflush(serial_fd, TCIFLUSH);   /* Discards old data in the rx buffer  */
 }
 
 int Serial::getSerial()
@@ -463,35 +476,9 @@ Serial::~Serial()
 
 void Serial::sendJSON(const struct can_frame received)
 {
-    std::cout << "JSON to be sent ..." << std::endl;
-    json j;
-    j["method"] = "canread";
-    std::stringstream ss;
-    ss << std::hex << std::setw(3) << std::showbase << received.can_id;
-    j["id"] = ss.str();
-    j["dlc"] = std::to_string(received.can_dlc);
-    std::vector<std::string> payload_hex;
-    for (int i = 0; i < received.can_dlc; ++i)
-    {
-        std::stringstream byte_ss;
-        byte_ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(received.data[i]);
-        payload_hex.push_back(byte_ss.str());
-    }
-
-    std::string payload_str;
-    for (size_t i = 0; i < payload_hex.size(); ++i)
-    {
-        if (i != 0)
-        {
-            payload_str += ",";
-        }
-        payload_str += payload_hex[i];
-    }
-    j["payload"] = payload_hex;
-    const std::string jsonString = j.dump();
-    std::cout << jsonString << std::endl;
-    // TODO: if frame analyzer returns that it is error frame, pack error frame message too in JSON string
-    serialsend(jsonString);
+    // TODO: Use checked example in file jsontest.cpp how to pack JSON and send via serial
+    // TODO: if frame analyzer returns that it is an error frame, pack error frame message too in JSON string
+    // call function serialsend
 }
 
 void Serial::serialsend(const std::string message)
@@ -505,10 +492,10 @@ void Serial::serialsend(const std::string message)
 }
 
 // TODO: Return JSON string to access its entities in main
-
+// Function needs to check whether JSON string is being received or not, with specified beginning and end
 json Serial::serialreceive()
 {
-    char ch_message;
+    char ch_message[256];
     std::string message;
 
     while (true)
@@ -523,19 +510,12 @@ json Serial::serialreceive()
             break;
         }
 
-        if (ch_message == '\n')
+        if(nbytes > 0)
         {
-            break;
-        }
-
+        // Check here as in example of file readtest.cpp
         message += ch_message;
+        }
     }
-
-    if (message.empty())
-    {
-        throw std::runtime_error("Received empty message.");
-    }
-    std::cout << message << std::endl;
 
     return json::parse(message);
 }
