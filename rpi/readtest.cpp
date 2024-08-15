@@ -3,10 +3,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
-
-// This kind of reading caches good JSON strings over serial, but in continuous loop 
-
-#define BUFFER_SIZE 1024
+#define START_MARKER 'R'
+#define END_MARKER '\n'
+#define BUFFER_SIZE 200
 
 int configure_fd(const char *portname) {
     int fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
@@ -35,7 +34,7 @@ int configure_fd(const char *portname) {
 
 	SerialPortSettings.c_oflag &= ~OPOST; /*No Output Processing*/
     
-    SerialPortSettings.c_cc[VMIN]  = 1;
+    SerialPortSettings.c_cc[VMIN]  = 50;
     SerialPortSettings.c_cc[VTIME] = 0;
 
 	if((tcsetattr(fd,TCSANOW,&SerialPortSettings)) != 0){ /* Set the attributes to the termios structure*/
@@ -56,16 +55,17 @@ void read_json_from_serial(int fd) {
     while (1) {
         bytes_read = read(fd, &buffer[buffer_pos], 1);
         if (bytes_read > 0) {
-            if (buffer[buffer_pos] == 'R') {
+            if (buffer[buffer_pos] == START_MARKER) {
                 json_started = 1;
                 buffer_pos = 0;
             }
 
             if (json_started) {
                 buffer_pos += bytes_read;
+               // printf("%s\n", buffer);
             }
 
-            if (buffer[buffer_pos - 1] == ')') {
+            if (buffer[buffer_pos - 1] == END_MARKER) {
                 buffer[buffer_pos] = '\0'; // Terminate string for later
                 printf("Received JSON: %s\n", buffer);
                 json_started = 0;
@@ -77,14 +77,14 @@ void read_json_from_serial(int fd) {
 
 int main() {
     const char *portname = "/dev/ttyS0"; 
-    int fd_fd = configure_fd(portname);
+    int fd = configure_fd(portname);
 
-    if (fd_fd < 0) {
+    if (fd < 0) {
         return 1;
     }
 
-    read_json_from_serial(fd_fd);
+    read_json_from_serial(fd);
 
-    close(fd_fd);
+    close(fd);
     return 0;
 }
