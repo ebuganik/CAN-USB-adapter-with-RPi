@@ -1,4 +1,6 @@
 import json
+import serial
+import time
 # In case of using keyboard
 # import keyboard
 
@@ -98,10 +100,25 @@ def read_input():
    # return json_data
 
 # TEST
-json_output = read_input()
-if json_output:
-    print(json_output)
+if __name__ == "__main__":
+    ser = serial.Serial("COM13", 115200,
+    parity=serial.PARITY_NONE,
+    bytesize=serial.EIGHTBITS,
+    stopbits=serial.STOPBITS_ONE,
+    timeout = 1
+    )
+    while True:
+        json_output = read_input()
+        if json_output:
+            print(json_output)
    
 # To send via serial data should be packed as 'R"({"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"[0x11,0x22,0x33,0x44]"})"'
-jsonsend = f'R"({json_output})"'
-print("Formatted JSON for sending:", jsonsend)
+        jsonsend = f'R"({json_output})"'
+        jsonsend += '\n'
+        print("Formatted JSON for sending:", jsonsend)
+        time.sleep(3)
+        print(jsonsend.encode('utf-8'))
+    # time.sleep(3)
+        val=ser.write(jsonsend.encode('utf-8'))
+        print(f"bytes written: {val}")
+        
