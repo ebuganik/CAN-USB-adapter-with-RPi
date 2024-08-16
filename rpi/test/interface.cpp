@@ -6,13 +6,18 @@
 #include <stdexcept>
 #include <cerrno>
 #include <cstring>
+#include <string>
 #include <sstream>
 #include <iomanip>
 #include <iostream>
 #include <fcntl.h>
+#include <vector>
 
+#define START_MARKER '{'
+#define END_MARKER '}'
+#define BUFFER_SIZE 200
 using namespace std;
-// using json = nlohmann::json;
+
 
 SocketCAN::SocketCAN(const std::string &interface_name, int bitrate)
 {
@@ -50,28 +55,61 @@ SocketCAN::~SocketCAN()
     close(socket_ctrl);
 }
 
+// Check if ok and send message
 void SocketCAN::cansend(const struct can_frame &frame)
 {
     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
 }
 
-/* TODO: function to send given JSON string as frame on CAN bus - example in jsontest.cpp */
-// void SocketCAN::cansend(const json j)
-// {
-//     /* Setting up CAN frame to send */
+struct can_frame SocketCAN::jsonunpack(json j)
+{
+    // std::cout << "U funkciji jsonunpack ..." << std::endl;
+    std::string method = j["method"];
+    int bitrate = j["bitrate"];
+    std::string id = j["can_id"];
+    int val = stoi(id, 0, 16);
+    int dlc = j["dlc"];
+    std::cout << dlc << std::endl;
+    std::string dataString = j["payload"];
+    std::cout << "Data string: "<< dataString <<std::endl;
+    std::vector<int> data;
+    std::string cleanData = dataString.substr(1, dataString.length()-2);
+    std::stringstream ss(cleanData);
+    std::string item;
+    int conv_val;
 
-//     struct can_frame frame;
-//     frame.can_id = j["id"];
-//     frame.can_dlc = j["dlc"];
-//     for (int i = 0; i < frame.can_dlc; i++)
-//     {
+    while(std::getline(ss, item, ',')) {
+        std::stringstream(item) >> std::hex >> conv_val;
+        data.push_back(conv_val);
+    }
 
-//            // frame.data[i] 
-//     }
-//     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
-//         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
-// }
+    // Appply to can_frame struct
+    struct can_frame frame;
+    frame.can_id = val;
+    frame.can_dlc = dlc; 
+    std::cout << std::dec << std::showbase <<  (int)frame.can_dlc << std::endl;
+    for (int i = 0; i < frame.can_dlc; i++)
+        {
+
+           frame.data[i] = data[i];
+        }
+    std::cout << "UNPACKED DATA INFO ..." << std::endl;
+       std::cout << std::endl;
+		
+    std::cout << std::left << std::setw(15) << "interface:"
+    << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
+    << std::setw(10) << std::hex << std::showbase << frame.can_id
+    << std::setw(20) << "data length:"
+    << std::setw(5) <<std::dec<< std::showbase << (int)frame.can_dlc<< "data: ";
+
+   for (int i = 0; i < frame.can_dlc; ++i)
+     {
+        std::cout << std::hex << std::showbase<< std::setw(2) << (int)frame.data[i] << " ";
+     }
+    std::cout << std::endl;
+    return frame;
+}
 struct can_frame SocketCAN::canread()
 {
     struct can_frame frame;
@@ -86,6 +124,7 @@ struct can_frame SocketCAN::canread()
         throw std::runtime_error("Insufficient number of bytes received!");
     }
     return frame;
+    
 }
 
 /* TODO: change this in case user wants to read frames with given CAN ID */
@@ -148,10 +187,10 @@ std::string SocketCAN::getCtrlErrorDesc(__u8 ctrl_error)
         errorDesc += "unspecified";
         break;
     case CAN_ERR_CRTL_RX_OVERFLOW:
-        errorDesc += "RX buffer overflow";
+        errorDesc += "RX buf overflow";
         break;
     case CAN_ERR_CRTL_TX_OVERFLOW:
-        errorDesc += "TX buffer overflow";
+        errorDesc += "TX buf overflow";
         break;
     case CAN_ERR_CRTL_RX_WARNING:
         errorDesc += "reached warning level for RX errors";
@@ -326,11 +365,10 @@ std::string SocketCAN::getTransceiverStatus(__u8 status_error)
     }
     return errorDesc;
 }
-/* TODO: return value should be message to be sent to serial */
+// From Frame Analyzer send bus state to serial, and error description in .log file
 void SocketCAN::frameAnalyzer(const struct can_frame &frame)
 {
     // Check if it's a remote transfer request frame, error frame or regular frame
-    //Send log message and status to serial port 
     Serial inform;
     if (frame.can_id & CAN_RTR_FLAG)
     {
@@ -429,39 +467,41 @@ int SocketCAN::setCANUp(int bitrate)
 
 Serial::Serial()
 {
-    serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NDELAY);
+    serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd < 0)
         throw std::runtime_error("Failed to open serial port. Check if it is used by another device. " + std::string(strerror(errno)));
+    
     struct termios config;
-
-    /* Make raw config */
+    
+    // Get the current options for the port and set the baudrates to 115200   
     tcgetattr(serial_fd, &config);	
-    cfmakeraw(&config);
-
-    /* Set input and output speed */
     cfsetispeed(&config, B115200);
     cfsetospeed(&config, B115200);
 
-    // Need to add some flags, check them too
+    // No parity (8N1)
     config.c_cflag &= ~PARENB;   
 	config.c_cflag &= ~CSTOPB;   
 	config.c_cflag &= ~CSIZE;	 
 	config.c_cflag |=  CS8;
 
+    // Hardware flow control disabled
+    // Receiver enabled and local mode set
     config.c_cflag &= ~CRTSCTS;       
 	config.c_cflag |= CREAD | CLOCAL; 
-
+    // Software control disabled
+    // Raw input (non-canonical), with no output processing
 	config.c_iflag &= ~(IXON | IXOFF | IXANY);          
 	config.c_iflag &=~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);                          
+    config.c_oflag &= ~OPOST;
 
+    config.c_cc[VMIN]= 10;
+    config.c_cc[VTIME]= 0;
 
-
-    /* Apply config immediately */
     if (tcsetattr(serial_fd, TCSANOW, &config) < 0)
     {
         throw std::runtime_error("Unable to set serial configuration.\n");
     }
-    tcflush(serial_fd, TCIFLUSH);   /* Discards old data in the rx buffer  */
+    tcflush(serial_fd, TCIFLUSH);   /* Discards old data in the rx buf  */
 }
 
 int Serial::getSerial()
@@ -476,46 +516,93 @@ Serial::~Serial()
 
 void Serial::sendJSON(const struct can_frame received)
 {
-    // TODO: Use checked example in file jsontest.cpp how to pack JSON and send via serial
-    // TODO: if frame analyzer returns that it is an error frame, pack error frame message too in JSON string
-    // call function serialsend
+   std::cout << "JSON to be sent ..."<<std::endl;
+   json j;
+   j["method"] = "canread";
+   std::stringstream cc;
+   cc << std::hex << std::setw(3) << std::showbase << received.can_id;
+   j["can_id"] = cc.str();
+   j["dlc"] = received.can_dlc;
+   std::vector<std::string> payload_hex;
+   for (int i = 0; i < received.can_dlc; ++i) {
+        std::stringstream byte_ss;
+	// std::cout << frame.data[i]<< std::endl; convert!
+        byte_ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(received.data[i]);
+        payload_hex.push_back(byte_ss.str());
+    }
+
+    // Joining data 
+    std::stringstream payload_ss;
+    payload_ss << "[";
+    for (size_t i = 0; i < payload_hex.size(); ++i) {
+        if (i != 0) {
+            payload_ss << ",";
+        }
+	// std::cout << payload_hex[i];
+        payload_ss << payload_hex[i];
+    }
+    payload_ss << "]";
+    j["payload"] = payload_ss.str();
+    std::string send_string = j.dump();
+    // Call proper function to send string over serial
+    std::cout << "String being sent to serial ...  "<< send_string;
+    std::cout << send_string << std::endl;
+    serialsend(send_string);
 }
 
 void Serial::serialsend(const std::string message)
 {
+    std::cout << "U funkciji serialsend sam ..." <<std::endl;
     const char *ch_message = message.c_str();
-    int nbytes = write(serial_fd, ch_message, message.size());
+    std::cout << ch_message << std::endl;
+    std::cout << "Slanje preko serijskog ..." << std::endl;
+    int nbytes = write(serial_fd, ch_message, strlen(ch_message));
     if (nbytes < 0)
     {
         throw std::runtime_error("No bytes written to file. " + std::string(strerror(errno)));
     }
 }
 
-// TODO: Return JSON string to access its entities in main
 // Function needs to check whether JSON string is being received or not, with specified beginning and end
 json Serial::serialreceive()
 {
-    char ch_message[256];
-    std::string message;
+   char buf[BUFFER_SIZE];
+   int buf_pos = 0;
+   int bytes_read = 0;
+   int json_started = 0;
 
-    while (true)
-    {
-        int nbytes = read(serial_fd, &ch_message, 1);
-        if (nbytes < 0)
-        {
-            throw std::runtime_error("Error reading from serial port: " + std::string(strerror(errno)));
+   while(1) {
+     bytes_read = read(serial_fd, &buf[buf_pos], 1);
+        if (bytes_read > 0) {
+            if (buf[buf_pos] == START_MARKER) {
+                json_started = 1;
+                buf_pos = 0;
+            }
+
+            if (json_started) {
+                buf_pos += bytes_read;
+                // std::cout << buf << std::endl;
+            }
+
+            if (buf[buf_pos - 1] == END_MARKER) {
+                buf[buf_pos] = '\0'; 
+                try {
+                    std::cout << buf << std::endl;
+                    std::string jsonString(buf);
+                    return json::parse(jsonString);
+                } catch (json::parse_error& e) {
+                    std::cerr << "Parse error: " << e.what() << std::endl;
+                }
+
+                json_started = 0;
+                buf_pos = 0;
+                // Initialize integer array with zeros
+                memset((void *)buf,'0',sizeof(buf));
+            }
         }
-        else if (nbytes == 0)
+        else
         {
             break;
         }
-
-        if(nbytes > 0)
-        {
-        // Check here as in example of file readtest.cpp
-        message += ch_message;
-        }
     }
-
-    return json::parse(message);
-}
+   }
