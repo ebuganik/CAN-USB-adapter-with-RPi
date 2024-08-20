@@ -1,22 +1,12 @@
 import json
 import serial
 import time
-# In case of using keyboard
-# import keyboard
 
 # Map possible range of bitrates for testing PEAKCAN USB
 MIN_BITRATE = 5000     # Min bitrate
 MAX_BITRATE = 1000000  # Max bitrate
 
 def read_input():
-    # print("Press 'w' for write or 'r' for read from CAN bus:")
-    # while True:
-    #     if keyboard.is_pressed('w'):
-    #         method = 'write'
-    #         break
-    #     elif keyboard.is_pressed('r'):
-    #         method = 'read'
-    #         break
     while True:
         method = input("Enter method (write or read): ").strip().lower()
         if method in ["write", "read"]:
@@ -76,6 +66,7 @@ def read_input():
             return None
         
     # Needs to be done
+    # In case of filtering, add can_id and mask 
     elif method == "read":
         try:
              # CAN ID input
@@ -94,10 +85,11 @@ def read_input():
             print(f"Error: {e}")
             return None 
 
-    # Serialize 
     j = json.dumps(json_data)
-    return j
-   # return json_data
+    json_send = f'R"({j})"'
+    json_send += '\n'
+    return json_send
+
 
 # TEST
 if __name__ == "__main__":
@@ -105,20 +97,28 @@ if __name__ == "__main__":
     parity=serial.PARITY_NONE,
     bytesize=serial.EIGHTBITS,
     stopbits=serial.STOPBITS_ONE,
-    timeout = 1
+    timeout = 0, 
+    writeTimeout = 2 
     )
-    while True:
-        json_output = read_input()
-        if json_output:
-            print(json_output)
-   
-# To send via serial data should be packed as 'R"({"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"[0x11,0x22,0x33,0x44]"})"'
-        jsonsend = f'R"({json_output})"'
-        jsonsend += '\n'
-        print("Formatted JSON for sending:", jsonsend)
-        time.sleep(3)
-        print(jsonsend.encode('utf-8'))
-    # time.sleep(3)
-        val=ser.write(jsonsend.encode('utf-8'))
-        print(f"bytes written: {val}")
+    try:
+        while True:
+            json_output = read_input()
+            if json_output:
+                print(json_output)
+       
+    # To send via serial data should be packed as 'R"({"method":"read","bitrate":250000,"id":"0x123","dlc":4,"data":"[0x11,0x22,0x33,0x44]"})"'
+            val=ser.write(json_output.encode('utf-8'))
+            print(f"bytes written: {val}")
+            while True:
+                if ser.in_waiting > 0:
+                    data = ser.readline().strip()
+                    print(f"Received data: {data}")
+                    break
+                time.sleep(0.1) 
+                
+    except serial.SerialException as e:
+            print(f"Error: {e}")
+
+    finally:
+        ser.close() 
         
