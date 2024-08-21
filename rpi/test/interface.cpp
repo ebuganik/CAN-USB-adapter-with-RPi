@@ -18,30 +18,19 @@
 #define BUFFER_SIZE 200
 using namespace std;
 
-
 SocketCAN::SocketCAN(const std::string &interface_name, int bitrate)
 {
-    /*Neccessary structs
-    - CAN interface info struct
-    - CAN address info struct
-    - CAN frame struct
-    */
-
-    /* Open a raw socket here */
     setCANUp(bitrate);
     socket_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd < 0)
         throw std::runtime_error("Error in creating socket: " + std::string(strerror(errno)));
 
-    /* Convert string interface_name to index */
     strcpy(ifr.ifr_name, interface_name.c_str());
     ioctl(socket_fd, SIOCGIFINDEX, &ifr);
 
-    /* Setup address for binding */
     addr.can_ifindex = ifr.ifr_ifindex;
     addr.can_family = AF_CAN;
 
-    /* Socket binding */
     if (bind(socket_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         throw std::runtime_error("Error in socket binding: " + std::string(strerror(errno)));
@@ -55,11 +44,15 @@ SocketCAN::~SocketCAN()
     close(socket_ctrl);
 }
 
-// Check if ok and send message
-void SocketCAN::cansend(const struct can_frame &frame)
+int SocketCAN::cansend(const struct can_frame &frame)
 {
     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
+    {
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
+        return -1;
+    }
+    else
+        return 1;
 }
 
 struct can_frame SocketCAN::jsonunpack(json j)
@@ -72,14 +65,15 @@ struct can_frame SocketCAN::jsonunpack(json j)
     int dlc = j["dlc"];
     std::cout << dlc << std::endl;
     std::string dataString = j["payload"];
-    std::cout << "Data string: "<< dataString <<std::endl;
+    std::cout << "Data string: " << dataString << std::endl;
     std::vector<int> data;
-    std::string cleanData = dataString.substr(1, dataString.length()-2);
+    std::string cleanData = dataString.substr(1, dataString.length() - 2);
     std::stringstream ss(cleanData);
     std::string item;
     int conv_val;
 
-    while(std::getline(ss, item, ',')) {
+    while (std::getline(ss, item, ','))
+    {
         std::stringstream(item) >> std::hex >> conv_val;
         data.push_back(conv_val);
     }
@@ -87,43 +81,37 @@ struct can_frame SocketCAN::jsonunpack(json j)
     // Appply to can_frame struct
     struct can_frame frame;
     frame.can_id = val;
-    frame.can_dlc = dlc; 
-    std::cout << std::dec << std::showbase <<  (int)frame.can_dlc << std::endl;
+    frame.can_dlc = dlc;
+    std::cout << std::dec << std::showbase << (int)frame.can_dlc << std::endl;
     for (int i = 0; i < frame.can_dlc; i++)
-        {
+    {
 
-           frame.data[i] = data[i];
-        }
+        frame.data[i] = data[i];
+    }
     std::cout << "UNPACKED DATA INFO ..." << std::endl;
-       std::cout << std::endl;
-		
-    std::cout << std::left << std::setw(15) << "interface:"
-    << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
-    << std::setw(10) << std::hex << std::showbase << frame.can_id
-    << std::setw(20) << "data length:"
-    << std::setw(5) <<std::dec<< std::showbase << (int)frame.can_dlc<< "data: ";
+    std::cout << std::endl;
 
-   for (int i = 0; i < frame.can_dlc; ++i)
-     {
-        std::cout << std::hex << std::showbase<< std::setw(2) << (int)frame.data[i] << " ";
-     }
+    std::cout << std::left << std::setw(15) << "interface:"
+              << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
+              << std::setw(10) << std::hex << std::showbase << frame.can_id
+              << std::setw(20) << "data length:"
+              << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
+
+    for (int i = 0; i < frame.can_dlc; ++i)
+    {
+        std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
+    }
     std::cout << std::endl;
     return frame;
 }
 struct can_frame SocketCAN::canread()
 {
-    struct can_frame frame;
-    int nbytes = read(socket_fd, &frame, sizeof(struct can_frame));
-    if (nbytes < 0)
-    {
-        throw std::runtime_error("Receiving CAN frame failed: " + std::string(strerror(errno)));
-    }
-
-    if (nbytes < sizeof(struct can_frame))
-    {
-        throw std::runtime_error("Insufficient number of bytes received!");
-    }
-    return frame;
+    struct can_frame receive;
+    while(1)
+{
+    if((read(socket_fd, &receive, sizeof(struct can_frame)) == sizeof(struct can_frame)));
+    return receive;
+}
     
 }
 
@@ -470,38 +458,38 @@ Serial::Serial()
     serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd < 0)
         throw std::runtime_error("Failed to open serial port. Check if it is used by another device. " + std::string(strerror(errno)));
-    
+
     struct termios config;
-    
-    // Get the current options for the port and set the baudrates to 115200   
-    tcgetattr(serial_fd, &config);	
+
+    // Get the current options for the port and set the baudrates to 115200
+    tcgetattr(serial_fd, &config);
     cfsetispeed(&config, B115200);
     cfsetospeed(&config, B115200);
 
     // No parity (8N1)
-    config.c_cflag &= ~PARENB;   
-	config.c_cflag &= ~CSTOPB;   
-	config.c_cflag &= ~CSIZE;	 
-	config.c_cflag |=  CS8;
+    config.c_cflag &= ~PARENB;
+    config.c_cflag &= ~CSTOPB;
+    config.c_cflag &= ~CSIZE;
+    config.c_cflag |= CS8;
 
     // Hardware flow control disabled
     // Receiver enabled and local mode set
-    config.c_cflag &= ~CRTSCTS;       
-	config.c_cflag |= CREAD | CLOCAL; 
+    config.c_cflag &= ~CRTSCTS;
+    config.c_cflag |= CREAD | CLOCAL;
     // Software control disabled
     // Raw input (non-canonical), with no output processing
-	config.c_iflag &= ~(IXON | IXOFF | IXANY);          
-	config.c_iflag &=~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);                          
+    config.c_iflag &= ~(IXON | IXOFF | IXANY);
+    config.c_iflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     config.c_oflag &= ~OPOST;
 
-    config.c_cc[VMIN]= 10;
-    config.c_cc[VTIME]= 0;
+    config.c_cc[VMIN] = 10;
+    config.c_cc[VTIME] = 0;
 
     if (tcsetattr(serial_fd, TCSANOW, &config) < 0)
     {
         throw std::runtime_error("Unable to set serial configuration.\n");
     }
-    tcflush(serial_fd, TCIFLUSH);   /* Discards old data in the rx buf  */
+    tcflush(serial_fd, TCIFLUSH);
 }
 
 int Serial::getSerial()
@@ -514,48 +502,43 @@ Serial::~Serial()
     close(serial_fd);
 }
 
-void Serial::sendJSON(const struct can_frame received)
+void Serial::sendjson(const struct can_frame received)
 {
-   std::cout << "JSON to be sent ..."<<std::endl;
-   json j;
-   j["method"] = "canread";
-   std::stringstream cc;
-   cc << std::hex << std::setw(3) << std::showbase << received.can_id;
-   j["can_id"] = cc.str();
-   j["dlc"] = received.can_dlc;
-   std::vector<std::string> payload_hex;
-   for (int i = 0; i < received.can_dlc; ++i) {
+    std::cout << "JSON to be sent ..." << std::endl;
+    json j;
+    std::stringstream cc;
+    cc << std::hex << std::setw(3) << std::showbase << received.can_id;
+    j["can_id"] = cc.str();
+    j["dlc"] = received.can_dlc;
+    std::vector<std::string> payload_hex;
+    for (int i = 0; i < received.can_dlc; ++i)
+    {
         std::stringstream byte_ss;
-	// std::cout << frame.data[i]<< std::endl; convert!
         byte_ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(received.data[i]);
         payload_hex.push_back(byte_ss.str());
     }
 
-    // Joining data 
+    // Joining data
     std::stringstream payload_ss;
     payload_ss << "[";
-    for (size_t i = 0; i < payload_hex.size(); ++i) {
-        if (i != 0) {
+    for (size_t i = 0; i < payload_hex.size(); ++i)
+    {
+        if (i != 0)
+        {
             payload_ss << ",";
         }
-	// std::cout << payload_hex[i];
         payload_ss << payload_hex[i];
     }
     payload_ss << "]";
     j["payload"] = payload_ss.str();
     std::string send_string = j.dump();
-    // Call proper function to send string over serial
-    std::cout << "String being sent to serial ...  "<< send_string;
     std::cout << send_string << std::endl;
     serialsend(send_string);
 }
 
 void Serial::serialsend(const std::string message)
 {
-    std::cout << "U funkciji serialsend sam ..." <<std::endl;
     const char *ch_message = message.c_str();
-    std::cout << ch_message << std::endl;
-    std::cout << "Slanje preko serijskog ..." << std::endl;
     int nbytes = write(serial_fd, ch_message, strlen(ch_message));
     if (nbytes < 0)
     {
@@ -563,41 +546,47 @@ void Serial::serialsend(const std::string message)
     }
 }
 
-// Function needs to check whether JSON string is being received or not, with specified beginning and end
 json Serial::serialreceive()
 {
-   char buf[BUFFER_SIZE];
-   int buf_pos = 0;
-   int bytes_read = 0;
-   int json_started = 0;
+    char buf[BUFFER_SIZE];
+    int buf_pos = 0;
+    int bytes_read = 0;
+    int json_started = 0;
 
-   while(1) {
-     bytes_read = read(serial_fd, &buf[buf_pos], 1);
-        if (bytes_read > 0) {
-            if (buf[buf_pos] == START_MARKER) {
+    while (1)
+    {
+        bytes_read = read(serial_fd, &buf[buf_pos], 1);
+        if (bytes_read > 0)
+        {
+            if (buf[buf_pos] == START_MARKER)
+            {
                 json_started = 1;
                 buf_pos = 0;
             }
 
-            if (json_started) {
+            if (json_started)
+            {
                 buf_pos += bytes_read;
-                // std::cout << buf << std::endl;
             }
 
-            if (buf[buf_pos - 1] == END_MARKER) {
-                buf[buf_pos] = '\0'; 
-                try {
+            if (buf[buf_pos - 1] == END_MARKER)
+            {
+                buf[buf_pos] = '\0';
+                try
+                {
                     std::cout << buf << std::endl;
                     std::string jsonString(buf);
                     return json::parse(jsonString);
-                } catch (json::parse_error& e) {
+                }
+                catch (json::parse_error &e)
+                {
                     std::cerr << "Parse error: " << e.what() << std::endl;
                 }
 
                 json_started = 0;
                 buf_pos = 0;
                 // Initialize integer array with zeros
-                memset((void *)buf,'0',sizeof(buf));
+                memset((void *)buf, '0', sizeof(buf));
             }
         }
         else
@@ -605,4 +594,4 @@ json Serial::serialreceive()
             break;
         }
     }
-   }
+}

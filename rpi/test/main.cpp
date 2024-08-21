@@ -12,16 +12,8 @@ int main()
     {
 
         Serial serial;
-        // /* Receiving CAN frames with enabled CAN filter enabled and to detect can error frames */
-        // socket.canfilterEnable();
-        // /* Receiving CAN frames with disabled CAN filter */
-        // // socket.canfilter_disable();
-        // /* Setting up CAN error filter */
-        // socket.errorFilter();
-        // /* Loopback mode */
-        // // socket.loopback(1);
         SocketCAN socket("can0", 250000);
-        socket.canfilterEnable();
+        // socket.canfilterEnable();
         /* Check up if interface is up or down*/
         if (socket.isCANUp("can0"))
         {
@@ -39,15 +31,15 @@ int main()
             {
                 std::cout << "Write function detected" << std::endl;
                 struct can_frame to_send = socket.jsonunpack(j);
-                socket.cansend(to_send);
+                if(socket.cansend(to_send)!=-1)
+                    serial.serialsend("ACK: CAN frame sent successfully!\n");
+                else serial.serialsend("NACK: Sending CAN frame unsuccessfull!\n");
             }
             else if (j["method"] == "read")
             {
                 // Check if can id shall be masked or not
                 std::cout <<"Read function detected" << std::endl;
-                sleep(2000);
                 struct can_frame received = socket.canread();
-                // serial.sendJSON(received);
                 socket.frameAnalyzer(received);
                 std::cout << std::left << std::setw(15) << "interface:"
                           << std::setw(10) << "can0"
@@ -62,18 +54,18 @@ int main()
                     std::cout << std::hex << std::setw(2) << (int)received.data[i] << " ";
                 }
                 std::cout << std::endl;
-
+                serial.sendjson(received);
             }
             else
             {
                 std::cout << "Faulty message received over serial!" << std::endl;
             }
         }
+        sleep(3);
     }
     catch (const std::exception &e)
     {
         std::cerr << e.what() << '\n';
-        return -1;
     }
 
     return 0;

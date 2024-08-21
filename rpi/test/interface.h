@@ -6,8 +6,7 @@
 #include <linux/can/netlink.h>
 #include <net/if.h>
 #include <termios.h>
-#include "nlohmann/json.hpp" 
-//#include "./ext_lib/json.hpp" 
+#include "../ext_lib/json.hpp" 
 
 using json = nlohmann::json;
 /* SocketCAN class to handle CAN bus communication */
@@ -23,7 +22,7 @@ private:
 public:
     SocketCAN(const std::string &interface_name, int bitrate);
     ~SocketCAN();
-    void cansend(const struct can_frame &frame); 
+    int cansend(const struct can_frame &frame); 
     struct can_frame jsonunpack(json j);
     struct can_frame canread();
     void canfilterEnable();
@@ -51,7 +50,6 @@ public:
     ~Serial();
     int getSerial();
     void serialsend(const std::string message);
-    void sendJSON(const struct can_frame received);
+    void sendjson(const struct can_frame received);
     json serialreceive();
-    // std::string serialreceive();
 };
