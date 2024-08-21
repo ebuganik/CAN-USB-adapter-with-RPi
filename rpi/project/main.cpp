@@ -26,7 +26,7 @@ int main()
 
             if (j["method"] == "write")
             {
-                std::cout << "Write function detected" << std::endl;
+                std::cout << "----------Write function detected----------" << std::endl;
                 struct can_frame to_send = socket.jsonunpack(j);
                 if(socket.cansend(to_send)!=-1)
                     serial.serialsend("ACK: CAN frame sent successfully!\n");
@@ -35,7 +35,7 @@ int main()
             else if (j["method"] == "read")
             {
                 // Check if can id shall be masked or not
-                std::cout <<"Read function detected" << std::endl;
+                std::cout <<"----------Read function detected----------" << std::endl;
                 struct can_frame received = socket.canread();
                 socket.frameAnalyzer(received);
                 std::cout << std::left << std::setw(15) << "interface:"
@@ -55,7 +55,7 @@ int main()
             }
             else
             {
-                std::cout << "Invalid request." << std::endl;
+                std::cout << "----------Invalid request----------" << std::endl;
             }
         }
         sleep(3);

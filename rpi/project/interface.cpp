@@ -58,15 +58,12 @@ int SocketCAN::cansend(const struct can_frame &frame)
 
 struct can_frame SocketCAN::jsonunpack(json j)
 {
-    // std::cout << "U funkciji jsonunpack ..." << std::endl;
     std::string method = j["method"];
     int bitrate = j["bitrate"];
     std::string id = j["can_id"];
     int val = stoi(id, 0, 16);
     int dlc = j["dlc"];
-    std::cout << dlc << std::endl;
     std::string dataString = j["payload"];
-    std::cout << "Data string: " << dataString << std::endl;
     std::vector<int> data;
     std::string cleanData = dataString.substr(1, dataString.length() - 2);
     std::stringstream ss(cleanData);
@@ -79,19 +76,15 @@ struct can_frame SocketCAN::jsonunpack(json j)
         data.push_back(conv_val);
     }
 
-    // Appply to can_frame struct
+    // Appply json parameters to can_frame struct
     struct can_frame frame;
     frame.can_id = val;
     frame.can_dlc = dlc;
-    std::cout << std::dec << std::showbase << (int)frame.can_dlc << std::endl;
     for (int i = 0; i < frame.can_dlc; i++)
     {
 
         frame.data[i] = data[i];
     }
-    std::cout << "UNPACKED DATA INFO ..." << std::endl;
-    std::cout << std::endl;
-
     std::cout << std::left << std::setw(15) << "interface:"
               << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
               << std::setw(10) << std::hex << std::showbase << frame.can_id
@@ -362,7 +355,7 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
     Serial inform;
     if (frame.can_id & CAN_RTR_FLAG)
     {
-        std::cout << "RTR frame" << std::endl;
+        std::cout << "RTR frame | ";
     }
     else if (frame.can_id & CAN_ERR_FLAG)
     {
@@ -412,12 +405,11 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
         else if (frame.can_id & CAN_ERR_CNT)
             // Add counter check
             errorMsg += "TX or RX error counter class error.";
-        // std::cout << errorMsg << std::endl;
         errorlog(errorMsg);
     }
     else
     {
-        std::cout << "Standard format frame" << std::endl;
+        std::cout << "Standard format frame | ";
     }
 }
 
@@ -506,7 +498,6 @@ Serial::~Serial()
 
 void Serial::sendjson(const struct can_frame received)
 {
-    std::cout << "JSON to be sent ..." << std::endl;
     json j;
     std::stringstream cc;
     cc << std::hex << std::setw(3) << std::showbase << received.can_id;
@@ -534,7 +525,6 @@ void Serial::sendjson(const struct can_frame received)
     payload_ss << "]";
     j["payload"] = payload_ss.str();
     std::string send_string = j.dump();
-    std::cout << send_string << std::endl;
     serialsend(send_string);
     errorlog(send_string);
 }
@@ -577,7 +567,6 @@ json Serial::serialreceive()
                 buf[buf_pos] = '\0';
                 try
                 {
-                    std::cout << buf << std::endl;
                     std::string jsonString(buf);
                     return json::parse(jsonString);
                 }
