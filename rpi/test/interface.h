@@ -53,3 +53,5 @@ public:
     void sendjson(const struct can_frame received);
     json serialreceive();
 };
+
+void errorlog(std::string error_desc);

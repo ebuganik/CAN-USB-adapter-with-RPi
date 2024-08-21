@@ -1,0 +1,2 @@
+ | CAN frame error | Controller problems - reached warning level for RX errors
+{"can_id":"0x20000004","dlc":8,"payload":"[0x00,0x04,0x00,0x00,0x00,0x00,0x00,0x00]"}

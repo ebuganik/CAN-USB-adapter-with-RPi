@@ -12,6 +12,7 @@
 #include <iostream>
 #include <fcntl.h>
 #include <vector>
+#include <fstream>
 
 #define START_MARKER '{'
 #define END_MARKER '}'
@@ -188,15 +189,15 @@ std::string SocketCAN::getCtrlErrorDesc(__u8 ctrl_error)
         break;
     case CAN_ERR_CRTL_RX_PASSIVE:
         errorDesc += "reached error passive status RX";
-        inform.serialsend("STATE: PASSIVE");
+        inform.serialsend("STATE: PASSIVE\n");
         break;
     case CAN_ERR_CRTL_TX_PASSIVE:
         errorDesc += "reached error passive status TX";
-        inform.serialsend("STATE: PASSIVE");
+        inform.serialsend("STATE: PASSIVE\n");
         break;
     case CAN_ERR_CRTL_ACTIVE:
         errorDesc += "recovered to error active state";
-        inform.serialsend("STATE: ACTIVE");
+        inform.serialsend("STATE: ACTIVE\n");
 
         break;
     default:
@@ -356,7 +357,8 @@ std::string SocketCAN::getTransceiverStatus(__u8 status_error)
 // From Frame Analyzer send bus state to serial, and error description in .log file
 void SocketCAN::frameAnalyzer(const struct can_frame &frame)
 {
-    // Check if it's a remote transfer request frame, error frame or regular frame
+    /* Check if it's a remote transfer request frame, error frame or regular frame */ 
+
     Serial inform;
     if (frame.can_id & CAN_RTR_FLAG)
     {
@@ -365,7 +367,6 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
     else if (frame.can_id & CAN_ERR_FLAG)
     {
         /* Check error class mask in can_id */
-        // Message being sent to serial
         std::string errorMsg = " | CAN frame error | ";
 
         if (frame.can_id & CAN_ERR_TX_TIMEOUT)
@@ -397,9 +398,9 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
             errorMsg += "Received no ACK on transmission";
         else if (frame.can_id & CAN_ERR_BUSOFF)
         {
-            // Handling bus-off state
-            std::cout << "RTR frame" << std::endl;
-            inform.serialsend("STATE: BUS OFF");
+            // Handling bus-off state - check if can is up here while analyzing frame
+            std::cout << "BUS OFF" << std::endl;
+            inform.serialsend("STATE: BUS OFF\n");
             // setCANUp(250000);
             // sleep_for(10ns);
             system("sudo reboot");
@@ -411,7 +412,8 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
         else if (frame.can_id & CAN_ERR_CNT)
             // Add counter check
             errorMsg += "TX or RX error counter class error.";
-        std::cout << errorMsg << std::endl;
+        // std::cout << errorMsg << std::endl;
+        errorlog(errorMsg);
     }
     else
     {
@@ -534,6 +536,7 @@ void Serial::sendjson(const struct can_frame received)
     std::string send_string = j.dump();
     std::cout << send_string << std::endl;
     serialsend(send_string);
+    errorlog(send_string);
 }
 
 void Serial::serialsend(const std::string message)
@@ -594,4 +597,15 @@ json Serial::serialreceive()
             break;
         }
     }
+}
+
+void errorlog(std::string error_desc)
+{
+    std::ofstream dataout;
+    dataout.open("error.log", ios::app);
+    if(!dataout)
+    {
+        std::cerr << "Error: file couldn't be opened!" << std::endl;
+    }
+    dataout << error_desc << std::endl;
 }
