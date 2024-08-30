@@ -9,18 +9,20 @@
 #include "../ext_lib/json.hpp" 
 
 using json = nlohmann::json;
+
 /* SocketCAN class to handle CAN bus communication */
 class SocketCAN
 {
 private:
     int socket_fd;   /* fd to read and write */
     int socket_ctrl; /* fd to control interface status */
+    const char* ifname = "can0";
     struct ifreq ifr;
     struct sockaddr_can addr;
     struct can_frame frame;
 
 public:
-    SocketCAN(const std::string &interface_name, int bitrate);
+    SocketCAN(int bitrate);
     ~SocketCAN();
     int cansend(const struct can_frame &frame); 
     struct can_frame jsonunpack(json j);
@@ -34,8 +36,10 @@ public:
     std::string getProtErrorLocDesc(__u8 prot_error);    /* error in CAN protocol (location) / data[3] */
     std::string getTransceiverStatus(__u8 status_error); /* error status of CAN-transceiver / data[4] */
     void frameAnalyzer(const struct can_frame &frame);
-    bool isCANUp(const std::string &interface_name);
-    int setCANUp(int bitrate);
+    bool isCANUp();                                      // Keep this func, sending interface string wont be necessary 
+    // int setCANUp(int bitrate);
+    int initCAN(int bitrate);                            /* Function that uses libsocketcan functions to set CAN interface up */
+    std::string checkState();
 };
 
 /* Termios class to handle serial communicaton */
@@ -54,4 +58,4 @@ public:
     json serialreceive();
 };
 
-void errorlog(std::string error_desc);
+void errorlog(const std::string& error_desc);

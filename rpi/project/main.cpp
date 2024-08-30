@@ -17,10 +17,7 @@ int main()
         {
             // Receive JSON from serial, extract bitrate or interface name if necessary and open socket, set it up and its bitrate
             json j = serial.serialreceive();
-            SocketCAN socket("can0", j["bitrate"]);
-            if(socket.isCANUp("can0"))
-            std::cout << "CAN is up!" << std::endl;
-            else std::cout << "CAN is down!" << std::endl;
+            SocketCAN socket(j["bitrate"]);
             // Activate error filter to get error descriptions in case error frame is being received
             socket.errorFilter();
 
@@ -28,16 +25,19 @@ int main()
             {
                 std::cout << "----------Write function detected----------" << std::endl;
                 struct can_frame to_send = socket.jsonunpack(j);
-                if(socket.cansend(to_send)!=-1)
-                    serial.serialsend("ACK: CAN frame sent successfully!\n");
-                else serial.serialsend("NACK: Sending CAN frame unsuccessfull!\n");
+                socket.cansend(to_send);
             }
             else if (j["method"] == "read")
             {
-                // Check if can id shall be masked or not
+                // Check if can id shall be masked or not - add logic
                 std::cout <<"----------Read function detected----------" << std::endl;
+                if(j["id"] != "None")
+                {
+                    socket.canfilterEnable();
+                }
                 struct can_frame received = socket.canread();
                 socket.frameAnalyzer(received);
+                serial.sendjson(received);
                 std::cout << std::left << std::setw(15) << "interface:"
                           << std::setw(10) << "can0"
                           << std::setw(15) << "CAN ID:"
@@ -51,7 +51,6 @@ int main()
                     std::cout << std::hex << std::setw(2) << (int)received.data[i] << " ";
                 }
                 std::cout << std::endl;
-                serial.sendjson(received);
             }
             else
             {
