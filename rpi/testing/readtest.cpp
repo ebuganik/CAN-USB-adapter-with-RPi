@@ -5,7 +5,7 @@
 #include <termios.h>
 #include <iostream>
 #include <string.h>
-#include "./ext_lib/json.hpp"
+#include "../ext_lib/json.hpp"
 
 #define START_MARKER '{'
 #define END_MARKER '}'
