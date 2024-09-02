@@ -15,12 +15,11 @@ int main()
         Serial serial;
         while (1)
         {
-            // Receive JSON from serial, extract bitrate or interface name if necessary and open socket, set it up and its bitrate
+            /* Receive JSON from serial, extract bitrate or interface name if necessary and open socket, set it up and its bitrate */ 
             json j = serial.serialreceive();
             SocketCAN socket(j["bitrate"]);
-            // Activate error filter to get error descriptions in case error frame is being received
+            /* Activate error filter to get error descriptions in case error frame is being received */
             socket.errorFilter();
-
             if (j["method"] == "write")
             {
                 std::cout << "----------Write function detected----------" << std::endl;
@@ -29,28 +28,14 @@ int main()
             }
             else if (j["method"] == "read")
             {
-                // Check if can id shall be masked or not - add logic
+                // TODO: Check if can id shall be masked or not - add logic
                 std::cout <<"----------Read function detected----------" << std::endl;
                 if(j["id"] != "None")
                 {
+                    // TODO: Send unpacked json data to extract mask and desired can id
                     socket.canfilterEnable();
                 }
-                struct can_frame received = socket.canread();
-                socket.frameAnalyzer(received);
-                serial.sendjson(received);
-                std::cout << std::left << std::setw(15) << "interface:"
-                          << std::setw(10) << "can0"
-                          << std::setw(15) << "CAN ID:"
-                          << std::setw(10) << std::hex << std::showbase << received.can_id
-                          << std::setw(20) << std::dec << "data length:"
-                          << std::setw(5) << (int)received.can_dlc
-                          << "data: ";
-
-                for (int i = 0; i < received.can_dlc; ++i)
-                {
-                    std::cout << std::hex << std::setw(2) << (int)received.data[i] << " ";
-                }
-                std::cout << std::endl;
+                socket.canread();
             }
             else
             {

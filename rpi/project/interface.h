@@ -26,7 +26,7 @@ public:
     ~SocketCAN();
     int cansend(const struct can_frame &frame); 
     struct can_frame jsonunpack(json j);
-    struct can_frame canread();
+    int canread();
     void canfilterEnable();
     void canfilterDisable();
     void loopback(int value);
@@ -36,8 +36,7 @@ public:
     std::string getProtErrorLocDesc(__u8 prot_error);    /* error in CAN protocol (location) / data[3] */
     std::string getTransceiverStatus(__u8 status_error); /* error status of CAN-transceiver / data[4] */
     void frameAnalyzer(const struct can_frame &frame);
-    bool isCANUp();                                      // Keep this func, sending interface string wont be necessary 
-    // int setCANUp(int bitrate);
+    bool isCANUp();                                      
     int initCAN(int bitrate);                            /* Function that uses libsocketcan functions to set CAN interface up */
     std::string checkState();
 };
@@ -58,4 +57,4 @@ public:
     json serialreceive();
 };
 
-void errorlog(const std::string& error_desc);
+void errorlog(const std::string& error_desc, const struct can_frame &frame );

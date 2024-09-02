@@ -17,22 +17,25 @@
 #include <chrono>
 #include <libsocketcan.h>
 #include <stdio.h>
+// Added to use timeout in canread function
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+
 #define START_MARKER '{'
 #define END_MARKER '}'
 #define BUFFER_SIZE 200
 using namespace std;
 
 SocketCAN::SocketCAN(int bitrate)
-{   
+{
 
-    // 1st option - calling from command line 
-    // setCANUp(bitrate); 
-    // 2nd option - calling functions from libsocketcan
-    if(initCAN(bitrate)!=0)
-    {
+    if (initCAN(bitrate) != 0)
+    {   std::cout << std::endl;
         std::cout << "can0 interface set to bitrate " << bitrate << std::endl;
     }
-    else throw std::runtime_error("Error in initializing CAN interface!"); 
+    else
+        throw std::runtime_error("Error in initializing CAN interface!");
 
     socket_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (socket_fd < 0)
@@ -57,13 +60,13 @@ SocketCAN::~SocketCAN()
     close(socket_ctrl);
 }
 
-/* TODO: This function shall send info to serial directly */
 int SocketCAN::cansend(const struct can_frame &frame)
 {
     Serial inform;
     if ((checkState() == "BUS OFF STATE") || (checkState() == "BUS WARNING STATE"))
     {
-        inform.serialsend("Unable to send data, bus off!\n");
+        inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
+        can_do_restart(ifname);
         return -1;
     }
     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
@@ -72,9 +75,11 @@ int SocketCAN::cansend(const struct can_frame &frame)
         inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
         return -1;
     }
-    else { inform.serialsend("ACK:CAN frame sent successfully!\n");
+    else
+    {
+        inform.serialsend("ACK:CAN frame sent successfully!\n");
         return 1;
-        }
+    }
 }
 
 struct can_frame SocketCAN::jsonunpack(json j)
@@ -97,7 +102,7 @@ struct can_frame SocketCAN::jsonunpack(json j)
         data.push_back(conv_val);
     }
 
-    // Appply json parameters to can_frame struct
+    /* Appply json parameters to can_frame struct */
     struct can_frame frame;
     frame.can_id = val;
     frame.can_dlc = dlc;
@@ -119,22 +124,74 @@ struct can_frame SocketCAN::jsonunpack(json j)
     std::cout << std::endl;
     return frame;
 }
-struct can_frame SocketCAN::canread()
+
+int SocketCAN::canread()
 {
+    Serial inform;
     struct can_frame receive;
-    while(1)
-{
-    if((read(socket_fd, &receive, sizeof(struct can_frame)) == sizeof(struct can_frame)));
-    return receive;
-}
-    
+    /* To set timeout in read function */
+    struct timeval timeout;
+    fd_set set;
+    int retval;
+
+    FD_ZERO(&set);
+    FD_SET(socket_fd, &set);
+
+    /* 10 seconds timeout */
+    timeout.tv_sec = 10;
+    timeout.tv_usec = 0;
+    retval = select(socket_fd + 1, &set, NULL, NULL, &timeout);
+
+    if (retval == -1)
+    {
+        std::cout << "An error ocurred in timeout set up!" << std::endl;
+        inform.serialsend("Unable to set timeout, no bytes read from CAN bus!");
+        return -1;
+    }
+    else if (retval == 0)
+    {
+        std::cout << "No data within 10 seconds." << std::endl;
+        inform.serialsend("CONNECTION TIMEOUT. No bytes read within 10 seconds!");
+        return -1;
+    }
+    else
+    {
+        while (1)
+        {
+            if (read(socket_fd, &frame, sizeof(struct can_frame)))
+            {
+
+                if(checkState()== "ERROR ACTIVE STATE")
+                {
+                    /* In this case, it's probably SFF, RTR or EFF */
+                    frameAnalyzer(frame);
+                    std::cout << std::left << std::setw(15) << "interface:"
+                            << std::setw(10) << "can0"
+                            << std::setw(15) << "CAN ID:"
+                            << std::setw(10) << std::hex << std::showbase << frame.can_id
+                            << std::setw(20) << std::dec << "data length:"
+                            << std::setw(5) << (int)frame.can_dlc
+                            << "data: ";
+
+                    for (int i = 0; i < frame.can_dlc; ++i)
+                    {
+                        std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
+                    }
+                    inform.sendjson(frame);
+                    break;
+                }
+                /* This part checks error frames */
+            else frameAnalyzer(frame); 
+            }
+         }
+         return 1;
+    }
 }
 
-/* TODO: change this in case user wants to read frames with given CAN ID */
+// TODO: change this in case user wants to read frames with given CAN ID 
 void SocketCAN::canfilterEnable()
 {
     struct can_filter rfilter[2];
-    // Set up reception filter on this socket 
     rfilter[0].can_id = 0x123;
     rfilter[0].can_mask = CAN_SFF_MASK;
 
@@ -152,7 +209,6 @@ void SocketCAN::errorFilter()
 {
 
     can_err_mask_t err_mask = CAN_ERR_MASK;
-    // can_err_mask_t err_mask = CAN_ERR_BUSOFF;
     if (setsockopt(socket_fd, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &err_mask, sizeof(err_mask)) < 0)
         throw std::runtime_error("Unable to set error filter: " + std::string(strerror(errno)));
 }
@@ -176,8 +232,8 @@ void SocketCAN::loopback(int value)
 
 std::string SocketCAN::getCtrlErrorDesc(__u8 ctrl_error)
 {
-    /* Subclasses of control error frames
-    If necessary, inform serial about CAN bus state */
+    /* Subclasses of control error frames */
+
     std::string errorDesc = "";
     Serial inform;
     switch (ctrl_error)
@@ -199,15 +255,15 @@ std::string SocketCAN::getCtrlErrorDesc(__u8 ctrl_error)
         break;
     case CAN_ERR_CRTL_RX_PASSIVE:
         errorDesc += "reached error passive status RX";
-        inform.serialsend("STATE: PASSIVE\n");
+        inform.serialsend("ERROR PASSIVE RX STATE\n");
         break;
     case CAN_ERR_CRTL_TX_PASSIVE:
         errorDesc += "reached error passive status TX";
-        inform.serialsend("STATE: PASSIVE\n");
+        inform.serialsend("ERROR PASSIVE TX STATE\n");
         break;
     case CAN_ERR_CRTL_ACTIVE:
         errorDesc += "recovered to error active state";
-        inform.serialsend("STATE: ACTIVE\n");
+        inform.serialsend("ERROR ACTIVE STATE\n");
 
         break;
     default:
@@ -364,8 +420,7 @@ std::string SocketCAN::getTransceiverStatus(__u8 status_error)
     }
     return errorDesc;
 }
-/* TODO: From Frame Analyzer send bus state to serial, and error description in .log file
-    Then, check if it's a RTR, error or standard format frame */
+
 void SocketCAN::frameAnalyzer(const struct can_frame &frame)
 {
     Serial inform;
@@ -373,9 +428,12 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
     {
         std::cout << "RTR frame | ";
     }
+    else if (frame.can_id & CAN_EFF_FLAG)
+    {
+        std::cout << "Extended Format Frame | ";
+    }
     else if (frame.can_id & CAN_ERR_FLAG)
     {
-        // Check error class mask in can_id 
         std::string errorMsg = "";
 
         if (frame.can_id & CAN_ERR_TX_TIMEOUT)
@@ -407,18 +465,17 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
             errorMsg += "Received no ACK on transmission";
         else if (frame.can_id & CAN_ERR_BUSOFF)
         {
-            // Handling bus-off state - check if can is up here while analyzing frame
-            std::cout << "BUS OFF" << std::endl;
-            inform.serialsend("STATE: BUS OFF\n");
+            std::cout << "BUS OFF ... Restarting can0 interface" << std::endl;
+            inform.serialsend("BUS OFF STATE");
+            can_do_restart(ifname);
         }
         else if (frame.can_id & CAN_ERR_BUSERROR)
             errorMsg += "Bus error (may flood!)";
         else if (frame.can_id & CAN_ERR_RESTARTED)
             errorMsg += "Controller restarted";
         else if (frame.can_id & CAN_ERR_CNT)
-            // Add counter check
             errorMsg += "TX or RX error counter class error.";
-        errorlog(errorMsg);
+        errorlog(errorMsg, frame);
     }
     else
     {
@@ -440,89 +497,71 @@ bool SocketCAN::isCANUp()
     return (ifr.ifr_flags & IFF_UP) != 0;
 }
 
-// int SocketCAN::setCANUp(int bitrate)
-// {
-//     std::string set_down = "sudo ip link set can0 down";
-//     if (system(set_down.c_str()) < 0)
-//     {
-//         std::cout << "Unable to set interface down!" << std::endl;
-//         return -1;
-//     }
-//     std::string set_up = "sudo ip link set can0 up type can bitrate " + std::to_string(bitrate) +
-//                          " restart-ms 100";
-//     if (system(set_up.c_str()) < 0)
-//     {
-//         {
-//             std::cout << "Unable to set interface up!" << std::endl;
-//             return -1;
-//         }
-//     }
-//     return 0;
-// }
-
 int SocketCAN::initCAN(int bitrate)
 {
-   
+
     /* In case interface can0 is up */
     can_do_stop("can0");
 
     /* Set interface bitrate */
-    if(can_set_bitrate("can0", bitrate)!= 0){
+    if (can_set_bitrate("can0", bitrate) != 0)
+    {
         std::cout << "Unable to set interface bitrate!" << std::endl;
         return -1;
     }
     /* Set interface up */
-    if(can_do_start("can0")!= 0){
+    if (can_do_start("can0") != 0)
+    {
         std::cout << "Unable to start up the interface!" << std::endl;
         return -1;
     }
-    else return 1;
+    else
+        return 1;
 }
 
 std::string SocketCAN::checkState()
 {
     int state, res;
-    std::string bus_state = " ";
-     // Get the state of the CAN interface
+    std::string bus_state = "";
+    /* Get the state of the CAN interface */
     res = can_get_state(ifname, &state);
-    
-    if (res != 0) 
-       throw std::runtime_error("Error getting CAN state:" + std::string(strerror(errno)));
 
-    // Output the state of the CAN interface
-    switch (state) {
-        case CAN_STATE_ERROR_ACTIVE:
-            std::cout << "CAN state: ERROR_ACTIVE" << std::endl;
-            bus_state += "ERROR ACTIVE STATE";
-            break;
-        case CAN_STATE_ERROR_WARNING:
-            std::cout << "CAN state: ERROR_WARNING" << std::endl;
-            bus_state += "ERROR WARNING STATE";
-            break;
-        case CAN_STATE_ERROR_PASSIVE:
-            std::cout << "CAN state: ERROR_PASSIVE" << std::endl;
-            bus_state += "ERROR PASSIVE STATE";
-            break;
-        case CAN_STATE_BUS_OFF:
-            std::cout << "CAN state: BUS_OFF" << std::endl;
-            bus_state += "BUS OFF STATE";
-            break;
-        case CAN_STATE_STOPPED:
-            std::cout << "CAN state: STOPPED" << std::endl;
-            bus_state += "STOPPED STATE";
-            break;
-        case CAN_STATE_SLEEPING:
-            std::cout << "CAN state: SLEEPING" << std::endl;
-            bus_state += "SLEEPING STATE";
-            break;
-        default:
-            std::cout << "CAN state: UNKNOWN" << std::endl;
-            bus_state += "UNKNOWN STATE";
-            break;
+    if (res != 0)
+        throw std::runtime_error("Error getting CAN state:" + std::string(strerror(errno)));
+
+    /* Output the state of the CAN interface */
+    switch (state)
+    {
+    case CAN_STATE_ERROR_ACTIVE:
+        std::cout << "CAN state: ERROR_ACTIVE" << std::endl;
+        bus_state += "ERROR ACTIVE STATE";
+        break;
+    case CAN_STATE_ERROR_WARNING:
+        std::cout << "CAN state: ERROR_WARNING" << std::endl;
+        bus_state += "ERROR WARNING STATE";
+        break;
+    case CAN_STATE_ERROR_PASSIVE:
+        std::cout << "CAN state: ERROR_PASSIVE" << std::endl;
+        bus_state += "ERROR PASSIVE STATE";
+        break;
+    case CAN_STATE_BUS_OFF:
+        std::cout << "CAN state: BUS_OFF" << std::endl;
+        bus_state += "BUS OFF STATE";
+        break;
+    case CAN_STATE_STOPPED:
+        std::cout << "CAN state: STOPPED" << std::endl;
+        bus_state += "STOPPED STATE";
+        break;
+    case CAN_STATE_SLEEPING:
+        std::cout << "CAN state: SLEEPING" << std::endl;
+        bus_state += "SLEEPING STATE";
+        break;
+    default:
+        std::cout << "CAN state: UNKNOWN" << std::endl;
+        bus_state += "UNKNOWN STATE";
+        break;
     }
     return bus_state;
-
-
 }
 Serial::Serial()
 {
@@ -532,23 +571,23 @@ Serial::Serial()
 
     struct termios config;
 
-    // Get the current options for the port and set the baudrates to 115200
+    /* Get the current options for the port and set the baudrates to 115200 */
     tcgetattr(serial_fd, &config);
     cfsetispeed(&config, B115200);
     cfsetospeed(&config, B115200);
 
-    // No parity (8N1)
+    /* No parity (8N1) */
     config.c_cflag &= ~PARENB;
     config.c_cflag &= ~CSTOPB;
     config.c_cflag &= ~CSIZE;
     config.c_cflag |= CS8;
 
-    // Hardware flow control disabled
-    // Receiver enabled and local mode set
+    /* Hardware flow control disabled */
+    /* Receiver enabled and local mode set */
     config.c_cflag &= ~CRTSCTS;
     config.c_cflag |= CREAD | CLOCAL;
-    // Software control disabled
-    // Raw input (non-canonical), with no output processing
+    /* Software control disabled */
+    /* Raw input (non-canonical), with no output processing */
     config.c_iflag &= ~(IXON | IXOFF | IXANY);
     config.c_iflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     config.c_oflag &= ~OPOST;
@@ -588,7 +627,7 @@ void Serial::sendjson(const struct can_frame received)
         payload_hex.push_back(byte_ss.str());
     }
 
-    // Joining data
+    /* Joining data */
     std::stringstream payload_ss;
     payload_ss << "[";
     for (size_t i = 0; i < payload_hex.size(); ++i)
@@ -648,41 +687,51 @@ json Serial::serialreceive()
                 }
                 catch (json::parse_error &e)
                 {
-                    std::cerr << "Parse error: " << e.what() << std::endl;
+                    std::cout << "Parse error: " << e.what() << std::endl;
                 }
 
                 json_started = 0;
                 buf_pos = 0;
-                // Initialize integer array with zeros
+                /* Initialize integer array with zeros */
                 memset((void *)buf, '0', sizeof(buf));
             }
         }
     }
 }
 
-/* TODO: Add header aka description of log file content */
+// TODO: Add header aka description of log file content 
 // TIMESTAMP : ERROR DESCRIPTION
-// ERROR FRAME CAN_ID PAYLOAD 
-void errorlog(const std::string& error_desc)
+// ERROR FRAME CAN_ID PAYLOAD
+void errorlog(const std::string &error_desc, const struct can_frame &frame)
 {
     std::ofstream dataout;
-    
-    // Get current time as time_t
+
+    /* Get current time as time_t */
     auto now = std::chrono::system_clock::now();
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-    
-    // Format the time
+
+    /* Format the time */
     std::tm tm = *std::localtime(&now_time);
-    
-    // Open file in append mode
+
+    /* Open file in append mode */
     dataout.open("error.log", std::ios::app);
     if (!dataout)
     {
-        std::cerr << "Error: file couldn't be opened!" << std::endl;
+        std::cout << "Error: file couldn't be opened!" << std::endl;
         return;
     }
-
-    // Write formatted time and error description to the file
+    std::cout << std::endl;
     dataout << "(" << std::put_time(&tm, "%F %T") << "): " << error_desc << std::endl;
-}
+    dataout << std::left << std::setw(15) << "interface:"
+            << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
+            << std::setw(15) << std::hex << std::showbase << frame.can_id
+            << std::setw(20) << "dlc:"
+            << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
 
+    
+    for (int i = 0; i < frame.can_dlc; ++i)
+        {
+        std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
+        }
+        std::cout << std::endl;
+}
