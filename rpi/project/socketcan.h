@@ -1,5 +1,5 @@
 #pragma once
-#include <stdio.h>
+// #include <stdio.h>
 #include <string>
 #include <linux/can.h>
 #include <linux/can/error.h>
@@ -40,21 +40,3 @@ public:
     int initCAN(int bitrate);                            /* Function that uses libsocketcan functions to set CAN interface up */
     std::string checkState();
 };
-
-/* Termios class to handle serial communicaton */
-
-class Serial
-{
-    int serial_fd;
-    struct termios config;
-
-public:
-    Serial();
-    ~Serial();
-    int getSerial();
-    void serialsend(const std::string message);
-    void sendjson(const struct can_frame received);
-    json serialreceive();
-};
-
-void errorlog(const std::string& error_desc, const struct can_frame &frame );
