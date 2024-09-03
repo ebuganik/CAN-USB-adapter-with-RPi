@@ -1,12 +1,5 @@
 #include "socketcan.h"
 #include "serial.h"
-#include <cerrno>
-#include <cstring>
-#include <string>
-#include <sstream>
-#include <iomanip>
-#include <iostream>
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -21,7 +14,8 @@ SocketCAN::SocketCAN(int bitrate)
 {
 
     if (initCAN(bitrate) != 0)
-    {   std::cout << std::endl;
+    {
+        std::cout << std::endl;
         std::cout << "can0 interface set to bitrate " << bitrate << std::endl;
     }
     else
@@ -59,6 +53,7 @@ int SocketCAN::cansend(const struct can_frame &frame)
         can_do_restart(ifname);
         return -1;
     }
+    // TODO: Check state once more even though it 'has been sent' (actually buffered)
     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
     {
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
@@ -72,47 +67,94 @@ int SocketCAN::cansend(const struct can_frame &frame)
     }
 }
 
-struct can_frame SocketCAN::jsonunpack(json j)
+struct can_frame SocketCAN::jsonunpack(const json &j)
 {
-    std::string method = j["method"];
-    int bitrate = j["bitrate"];
-    std::string id = j["can_id"];
-    int val = stoi(id, 0, 16);
-    int dlc = j["dlc"];
-    std::string dataString = j["payload"];
-    std::vector<int> data;
-    std::string cleanData = dataString.substr(1, dataString.length() - 2);
-    std::stringstream ss(cleanData);
-    std::string item;
-    int conv_val;
+    struct can_frame frame = {0};
 
-    while (std::getline(ss, item, ','))
+    if (j["method"] == "write")
     {
-        std::stringstream(item) >> std::hex >> conv_val;
-        data.push_back(conv_val);
+        std::string id = j["can_id"];
+        int val = stoi(id, 0, 16);
+        int dlc = j["dlc"];
+        std::string dataString = j["payload"];
+        std::vector<int> data;
+        std::string cleanData = dataString.substr(1, dataString.length() - 2);
+        std::stringstream ss(cleanData);
+        std::string item;
+        int conv_val;
+
+        while (std::getline(ss, item, ','))
+        {
+            std::stringstream(item) >> std::hex >> conv_val;
+            data.push_back(conv_val);
+        }
+
+        /* Appply json parameters to can_frame struct */
+        frame.can_id = val;
+        frame.can_dlc = dlc;
+        for (int i = 0; i < frame.can_dlc; i++)
+        {
+
+            frame.data[i] = data[i];
+        }
+        // TODO: Make a printf function for struct can_frame instead of this
+        std::cout << std::left << std::setw(15) << "interface:"
+                  << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
+                  << std::setw(10) << std::hex << std::showbase << frame.can_id
+                  << std::setw(20) << "data length:"
+                  << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
+
+        for (int i = 0; i < frame.can_dlc; ++i)
+        {
+            std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
+        }
+        std::cout << std::endl;
+        return frame;
     }
 
-    /* Appply json parameters to can_frame struct */
-    struct can_frame frame;
-    frame.can_id = val;
-    frame.can_dlc = dlc;
-    for (int i = 0; i < frame.can_dlc; i++)
+    else /* condition for read method, in case it's necessary to extract filters */
     {
 
-        frame.data[i] = data[i];
-    }
-    std::cout << std::left << std::setw(15) << "interface:"
-              << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
-              << std::setw(10) << std::hex << std::showbase << frame.can_id
-              << std::setw(20) << "data length:"
-              << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
+        std::vector<canid_t> canids;
+        std::vector<canid_t> canmasks;
 
-    for (int i = 0; i < frame.can_dlc; ++i)
-    {
-        std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
+        std::string can_id = j["can_id"];
+        std::string can_mask = j["can_mask"];
+        std::string cln1 = can_id.substr(1, can_id.length() - 2);
+        std::string cln2 = can_mask.substr(1, can_mask.length() - 2);
+        std::stringstream ss1(cln1);
+        std::stringstream ss2(cln2);
+        std::string item1, item2;
+        int conv_val1, conv_val2;
+        while (std::getline(ss1, item1, ',') && std::getline(ss2, item2, ','))
+        {
+            std::stringstream(item1) >> std::hex >> conv_val1;
+            std::stringstream(item2) >> std::hex >> conv_val2;
+            canids.push_back(conv_val1);
+            canmasks.push_back(conv_val2);
+        }
+
+        // Just to display, not neccessary 
+        // std::cout << "CAN IDs: ";
+        // for (const auto &val : canids)
+        // {
+        //     std::cout << std::hex << val << " ";
+        // }
+        // std::cout << "CAN masks: ";
+        // for (const auto &val : canmasks)
+        // {
+        //     std::cout << std::hex << val << " ";
+        // }
+
+        std::vector<std::pair<canid_t, canid_t>> filters;
+        for (size_t i = 0; i < canids.size(); ++i)
+        {
+            filters.emplace_back(canids[i], canmasks[i]);
+        }
+        canfilterEnable(filters);
+
+        return frame;
     }
-    std::cout << std::endl;
-    return frame;
 }
 
 int SocketCAN::canread()
@@ -151,17 +193,17 @@ int SocketCAN::canread()
             if (read(socket_fd, &frame, sizeof(struct can_frame)))
             {
 
-                if(checkState()== "ERROR ACTIVE STATE")
+                if (checkState() == "ERROR ACTIVE STATE")
                 {
                     /* In this case, it's probably SFF, RTR or EFF */
                     frameAnalyzer(frame);
                     std::cout << std::left << std::setw(15) << "interface:"
-                            << std::setw(10) << "can0"
-                            << std::setw(15) << "CAN ID:"
-                            << std::setw(10) << std::hex << std::showbase << frame.can_id
-                            << std::setw(20) << std::dec << "data length:"
-                            << std::setw(5) << (int)frame.can_dlc
-                            << "data: ";
+                              << std::setw(10) << "can0"
+                              << std::setw(15) << "CAN ID:"
+                              << std::setw(10) << std::hex << std::showbase << frame.can_id
+                              << std::setw(20) << std::dec << "data length:"
+                              << std::setw(5) << (int)frame.can_dlc
+                              << "data: ";
 
                     for (int i = 0; i < frame.can_dlc; ++i)
                     {
@@ -171,19 +213,22 @@ int SocketCAN::canread()
                     break;
                 }
                 /* This part checks error frames */
-            else frameAnalyzer(frame); 
+                else
+                    frameAnalyzer(frame);
             }
-         }
-         return 1;
+        }
+        return 1;
     }
 }
 
-// TODO: change this in case user wants to read frames with given CAN ID 
-void SocketCAN::canfilterEnable()
+void SocketCAN::canfilterEnable(std::vector<std::pair<canid_t, canid_t>> &filter)
 {
-    struct can_filter rfilter[2];
-    rfilter[0].can_id = 0x123;
-    rfilter[0].can_mask = CAN_SFF_MASK;
+    struct can_filter rfilter[filter.size()];
+    for (size_t i = 0; i < filter.size(); ++i)
+    {
+        rfilter[i].can_id = filter[i].first;
+        rfilter[i].can_mask = filter[i].second;
+    }
 
     if (setsockopt(socket_fd, SOL_CAN_RAW, CAN_RAW_FILTER, &rfilter, sizeof(rfilter)) < 0)
         throw std::runtime_error("Unable to set reception filter: " + std::string(strerror(errno)));

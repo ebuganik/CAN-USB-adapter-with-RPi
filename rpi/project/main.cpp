@@ -1,11 +1,12 @@
 #include "serial.h"
 #include "socketcan.h"
-#include <cstdlib>
 #include <unistd.h>
 #include <iostream>
 #include <iomanip>
 #include <time.h>
+
 using namespace std;
+
 int main()
 {
 
@@ -28,13 +29,11 @@ int main()
             }
             else if (j["method"] == "read")
             {
-                // TODO: Check if can id shall be masked or not - add logic
                 std::cout <<"----------Read function detected----------" << std::endl;
-                if(j["id"] != "None")
-                {
-                    // TODO: Send unpacked json data to extract mask and desired can id
-                    socket.canfilterEnable();
-                }
+                // TODO: Add changes to python code, because can_id and can_mask are not necessary fields in JSON string 
+                /* Check whether can_id and can_mask are sent to set receive filter */
+                if(j.contains("can_id") && j.contains("can_mask"))
+                    socket.jsonunpack(j);
                 socket.canread();
             }
             else
@@ -46,7 +45,7 @@ int main()
     }
     catch (const std::exception &e)
     {
-        std::cerr << e.what() << '\n';
+        std::cout << e.what() << '\n';
     }
 
     return 0;

@@ -1,13 +1,15 @@
 #pragma once
-// #include <stdio.h>
 #include <string>
 #include <linux/can.h>
 #include <linux/can/error.h>
 #include <linux/can/netlink.h>
 #include <net/if.h>
 #include <termios.h>
+#include <vector>
+#include <utility>
 #include "../ext_lib/json.hpp" 
 
+using namespace std;
 using json = nlohmann::json;
 
 /* SocketCAN class to handle CAN bus communication */
@@ -25,9 +27,9 @@ public:
     SocketCAN(int bitrate);
     ~SocketCAN();
     int cansend(const struct can_frame &frame); 
-    struct can_frame jsonunpack(json j);
+    struct can_frame jsonunpack(const json &j);
     int canread();
-    void canfilterEnable();
+    void canfilterEnable(std::vector<std::pair<canid_t, canid_t>> &filter);
     void canfilterDisable();
     void loopback(int value);
     void errorFilter();
