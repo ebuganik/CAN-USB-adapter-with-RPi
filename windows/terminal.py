@@ -76,9 +76,15 @@ def read_input():
                 raise ValueError("Not a valid CAN ID.")
             formatted_can_id = f"0x{can_id:03X}"
             
+            # Input desired bitrate
+            bitrate = int(input("Enter desired bitrate: ").strip())
+            if not MIN_BITRATE <= bitrate <= MAX_BITRATE:
+                raise ValueError(f"Bitrate must be between {MIN_BITRATE} and {MAX_BITRATE} bps.")
+            
             # Pack data into JSON
             json_data.update({
-                "can_id": formatted_can_id
+                "can_id": formatted_can_id,
+                "bitrate": bitrate
             }) 
             
         except ValueError as e:
