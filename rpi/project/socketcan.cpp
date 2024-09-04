@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/select.h>
-
+#include <chrono>
 SocketCAN::SocketCAN(int bitrate)
 {
 
@@ -47,13 +47,14 @@ SocketCAN::~SocketCAN()
 int SocketCAN::cansend(const struct can_frame &frame)
 {
     Serial inform;
+    /* Interface is already in one of these states */
     if ((checkState() == "BUS OFF STATE") || (checkState() == "BUS WARNING STATE"))
     {
         inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
         can_do_restart(ifname);
         return -1;
     }
-    // TODO: Check state once more even though it 'has been sent' (actually buffered)
+    /* Although it seems bytes are sent, they are actually buffered and state should be checked */
     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
     {
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
@@ -134,7 +135,7 @@ struct can_frame SocketCAN::jsonunpack(const json &j)
             canmasks.push_back(conv_val2);
         }
 
-        // Just to display, not neccessary 
+        // Just to display, not neccessary
         // std::cout << "CAN IDs: ";
         // for (const auto &val : canids)
         // {
@@ -188,13 +189,25 @@ int SocketCAN::canread()
     }
     else
     {
+        auto start_time = std::chrono::steady_clock::now();
+
         while (1)
         {
+            auto current_time = std::chrono::steady_clock::now();
+            std::chrono::duration<double> elapsed_time = current_time - start_time;
+
+             if (elapsed_time.count() >= 10.0)  // If 10 sec passed, exit
+            {
+                std::cout << "Time limit exceeded, exiting loop." << std::endl;
+                break;
+            }
+
             if (read(socket_fd, &frame, sizeof(struct can_frame)))
             {
 
                 if (checkState() == "ERROR ACTIVE STATE")
                 {
+                    sleep(1);
                     /* In this case, it's probably SFF, RTR or EFF */
                     frameAnalyzer(frame);
                     std::cout << std::left << std::setw(15) << "interface:"
@@ -209,15 +222,30 @@ int SocketCAN::canread()
                     {
                         std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
                     }
+                    std::cout << std::endl;
                     inform.sendjson(frame);
                     break;
                 }
                 /* This part checks error frames */
                 else
+                {
                     frameAnalyzer(frame);
+                    std::cout << std::left << std::setw(15) << "interface:"
+                              << std::setw(10) << "can0"
+                              << std::setw(15) << "CAN ID:"
+                              << std::setw(10) << std::hex << std::showbase << frame.can_id
+                              << std::setw(20) << std::dec << "data length:"
+                              << std::setw(5) << (int)frame.can_dlc
+                              << "data: ";
+                     for (int i = 0; i < frame.can_dlc; ++i)
+                    {
+                        std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
+                    }
+                    std::cout << std::endl;
+                }
             }
         }
-        return 1;
+       return 1;
     }
 }
 
@@ -483,6 +511,13 @@ void SocketCAN::frameAnalyzer(const struct can_frame &frame)
         {
             errorMsg += "Controller problems - ";
             errorMsg += getCtrlErrorDesc(frame.data[1]);
+            /* bus off check */
+            if (frame.can_id & CAN_ERR_BUSOFF)
+            {
+                errorMsg += "- BUS OFF";
+                inform.serialsend("BUS OFF STATE");
+                can_do_restart(ifname);
+            }
         }
         else if (frame.can_id & CAN_ERR_PROT)
         {
@@ -581,6 +616,7 @@ std::string SocketCAN::checkState()
         break;
     case CAN_STATE_BUS_OFF:
         std::cout << "CAN state: BUS_OFF" << std::endl;
+        // TODO: restart
         bus_state += "BUS OFF STATE";
         break;
     case CAN_STATE_STOPPED:
