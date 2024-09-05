@@ -10,6 +10,9 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <chrono>
+
+using namespace std::chrono;
+
 SocketCAN::SocketCAN(int bitrate)
 {
 
@@ -54,9 +57,10 @@ int SocketCAN::cansend(const struct can_frame &frame)
         can_do_restart(ifname);
         return -1;
     }
-    /* Although it seems bytes are sent, they are actually buffered and state should be checked */
+    /* Although it seems bytes are sent, they are actually buffered and state should be checked? */
     if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
     {
+        std::cout << std::boolalpha << isCANUp() << std::endl;
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
         inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
         return -1;
@@ -98,18 +102,7 @@ struct can_frame SocketCAN::jsonunpack(const json &j)
 
             frame.data[i] = data[i];
         }
-        // TODO: Make a printf function for struct can_frame instead of this
-        std::cout << std::left << std::setw(15) << "interface:"
-                  << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
-                  << std::setw(10) << std::hex << std::showbase << frame.can_id
-                  << std::setw(20) << "data length:"
-                  << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
-
-        for (int i = 0; i < frame.can_dlc; ++i)
-        {
-            std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
-        }
-        std::cout << std::endl;
+        displayFrame(frame);
         return frame;
     }
 
@@ -134,19 +127,6 @@ struct can_frame SocketCAN::jsonunpack(const json &j)
             canids.push_back(conv_val1);
             canmasks.push_back(conv_val2);
         }
-
-        // Just to display, not neccessary
-        // std::cout << "CAN IDs: ";
-        // for (const auto &val : canids)
-        // {
-        //     std::cout << std::hex << val << " ";
-        // }
-        // std::cout << "CAN masks: ";
-        // for (const auto &val : canmasks)
-        // {
-        //     std::cout << std::hex << val << " ";
-        // }
-
         std::vector<std::pair<canid_t, canid_t>> filters;
         for (size_t i = 0; i < canids.size(); ++i)
         {
@@ -190,39 +170,27 @@ int SocketCAN::canread()
     else
     {
         auto start_time = std::chrono::steady_clock::now();
-
         while (1)
         {
             auto current_time = std::chrono::steady_clock::now();
             std::chrono::duration<double> elapsed_time = current_time - start_time;
+            // std::cout << elapsed_time.count() << std::endl;
 
-             if (elapsed_time.count() >= 10.0)  // If 10 sec passed, exit
+            if (elapsed_time.count() >= 3.0)
             {
                 std::cout << "Time limit exceeded, exiting loop." << std::endl;
                 break;
             }
 
+            /* Reads one frame at the time*/
             if (read(socket_fd, &frame, sizeof(struct can_frame)))
-            {
 
                 if (checkState() == "ERROR ACTIVE STATE")
                 {
                     sleep(1);
                     /* In this case, it's probably SFF, RTR or EFF */
                     frameAnalyzer(frame);
-                    std::cout << std::left << std::setw(15) << "interface:"
-                              << std::setw(10) << "can0"
-                              << std::setw(15) << "CAN ID:"
-                              << std::setw(10) << std::hex << std::showbase << frame.can_id
-                              << std::setw(20) << std::dec << "data length:"
-                              << std::setw(5) << (int)frame.can_dlc
-                              << "data: ";
-
-                    for (int i = 0; i < frame.can_dlc; ++i)
-                    {
-                        std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
-                    }
-                    std::cout << std::endl;
+                    displayFrame(frame);
                     inform.sendjson(frame);
                     break;
                 }
@@ -230,22 +198,11 @@ int SocketCAN::canread()
                 else
                 {
                     frameAnalyzer(frame);
-                    std::cout << std::left << std::setw(15) << "interface:"
-                              << std::setw(10) << "can0"
-                              << std::setw(15) << "CAN ID:"
-                              << std::setw(10) << std::hex << std::showbase << frame.can_id
-                              << std::setw(20) << std::dec << "data length:"
-                              << std::setw(5) << (int)frame.can_dlc
-                              << "data: ";
-                     for (int i = 0; i < frame.can_dlc; ++i)
-                    {
-                        std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
-                    }
-                    std::cout << std::endl;
+                    displayFrame(frame);
                 }
-            }
         }
-       return 1;
+
+        return 1;
     }
 }
 
@@ -633,4 +590,19 @@ std::string SocketCAN::checkState()
         break;
     }
     return bus_state;
+}
+
+void SocketCAN::displayFrame(const struct can_frame &frame)
+{
+    std::cout << std::left << std::setw(15) << "interface:"
+              << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
+              << std::setw(10) << std::hex << std::showbase << frame.can_id
+              << std::setw(20) << "data length:"
+              << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
+
+    for (int i = 0; i < frame.can_dlc; ++i)
+    {
+        std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
+    }
+    std::cout << std::endl;
 }

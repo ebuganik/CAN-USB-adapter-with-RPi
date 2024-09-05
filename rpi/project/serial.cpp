@@ -176,14 +176,6 @@ void errorlog(const std::string &error_desc, const struct can_frame &frame)
     dataout << "(" << std::put_time(&tm, "%F %T") << "): " << error_desc << std::endl;
     dataout << std::left << std::setw(15) << "interface:"
             << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
-            << std::setw(15) << std::hex << std::showbase << frame.can_id
-            << std::setw(20) << "dlc:"
-            << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
+            << std::setw(15) << std::hex << std::showbase << frame.can_id << std::endl;
 
-    
-    for (int i = 0; i < frame.can_dlc; ++i)
-        {
-        std::cout << std::hex << std::setw(2) << (int)frame.data[i] << " ";
-        }
-        std::cout << std::endl;
 }

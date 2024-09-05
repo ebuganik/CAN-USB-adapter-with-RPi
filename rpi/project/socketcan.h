@@ -33,6 +33,7 @@ public:
     void canfilterDisable();
     void loopback(int value);
     void errorFilter();
+    void displayFrame(const struct can_frame &frame);
     std::string getCtrlErrorDesc(__u8 ctrl_error);
     std::string getProtErrorTypeDesc(__u8 prot_error);   /* error in CAN protocol (type) / data[2] */
     std::string getProtErrorLocDesc(__u8 prot_error);    /* error in CAN protocol (location) / data[3] */

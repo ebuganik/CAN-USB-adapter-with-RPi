@@ -26,11 +26,11 @@ int main()
                 std::cout << "----------Write function detected----------" << std::endl;
                 struct can_frame to_send = socket.jsonunpack(j);
                 socket.cansend(to_send);
+                // std::cout << std::boolalpha <<socket.isCANUp()<<std::endl;
             }
             else if (j["method"] == "read")
             {
                 std::cout <<"----------Read function detected----------" << std::endl;
-                // TODO: Add changes to python code, because can_id and can_mask are not necessary fields in JSON string 
                 /* Check whether can_id and can_mask are sent to set receive filter */
                 if(j.contains("can_id") && j.contains("can_mask"))
                     socket.jsonunpack(j);
