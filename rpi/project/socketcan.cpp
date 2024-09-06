@@ -109,15 +109,11 @@ struct can_frame SocketCAN::jsonunpack(const json &j)
     else /* condition for read method, in case it's necessary to extract filters */
     {
 
-        std::vector<canid_t> canids;
-        std::vector<canid_t> canmasks;
-
-        std::string can_id = j["can_id"];
-        std::string can_mask = j["can_mask"];
+        std::vector<canid_t> canids, canmasks;
+        std::string can_id = j["can_id"], can_mask = j["can_mask"];
         std::string cln1 = can_id.substr(1, can_id.length() - 2);
         std::string cln2 = can_mask.substr(1, can_mask.length() - 2);
-        std::stringstream ss1(cln1);
-        std::stringstream ss2(cln2);
+        std::stringstream ss1(cln1), ss2(cln2);
         std::string item1, item2;
         int conv_val1, conv_val2;
         while (std::getline(ss1, item1, ',') && std::getline(ss2, item2, ','))
@@ -145,7 +141,7 @@ int SocketCAN::canread()
     /* To set timeout in read function */
     struct timeval timeout;
     fd_set set;
-    int retval;
+    int retval, check = 0;
 
     FD_ZERO(&set);
     FD_SET(socket_fd, &set);
@@ -164,26 +160,19 @@ int SocketCAN::canread()
     else if (retval == 0)
     {
         std::cout << "No data within 10 seconds." << std::endl;
-        inform.serialsend("CONNECTION TIMEOUT. No bytes read within 10 seconds!");
+        inform.serialsend("CONNECTION TIMEOUT. No activity on the socket.");
         return -1;
     }
     else
     {
         auto start_time = std::chrono::steady_clock::now();
+        std::chrono::duration<double> elapsed_time;
         while (1)
         {
-            auto current_time = std::chrono::steady_clock::now();
-            std::chrono::duration<double> elapsed_time = current_time - start_time;
-            // std::cout << elapsed_time.count() << std::endl;
-
-            if (elapsed_time.count() >= 3.0)
-            {
-                std::cout << "Time limit exceeded, exiting loop." << std::endl;
-                break;
-            }
 
             /* Reads one frame at the time*/
             if (read(socket_fd, &frame, sizeof(struct can_frame)))
+            {
 
                 if (checkState() == "ERROR ACTIVE STATE")
                 {
@@ -197,9 +186,18 @@ int SocketCAN::canread()
                 /* This part checks error frames */
                 else
                 {
+                    sleep(1);
                     frameAnalyzer(frame);
                     displayFrame(frame);
+                    auto current_time = std::chrono::steady_clock::now();
+                    elapsed_time = current_time - start_time;
                 }
+            }
+            if (elapsed_time.count() >= 5.00)
+            {
+                std::cout << "Reading time of error frames elapsed!" << std::endl;
+                break;
+            }
         }
 
         return 1;

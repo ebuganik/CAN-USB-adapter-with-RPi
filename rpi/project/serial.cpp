@@ -140,6 +140,7 @@ json Serial::serialreceive()
                 catch (json::parse_error &e)
                 {
                     std::cout << "Parse error: " << e.what() << std::endl;
+                    break;
                 }
 
                 json_started = 0;
