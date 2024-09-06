@@ -202,7 +202,7 @@ def read_input():
         except ValueError as e:
             print(f"Error: {e}")
             return None
-        
+
     # JSON object to JSON formatted string
     j = json.dumps(json_data)
     json_send = f'R"({j})"'
