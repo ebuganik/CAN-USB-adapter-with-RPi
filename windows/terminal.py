@@ -1,5 +1,9 @@
 import json
 
+write_dict = {}
+# Do the same for received frames
+read_dict = {}
+
 # Mapping supported bitrates for testing with PEAKCAN-USB (CAN SJA-1000 mode)
 
 PCAN_BITRATES = {
@@ -20,8 +24,31 @@ PCAN_BITRATES = {
     800000: "800 kbps",
     1000000: "1 Mbps",
 }
+def method_check(method):
+    for key in reversed(write_dict):
+        if method in key:
+            return True
+    return False
 
+def repeat_request(method):
+    # Returns last found key by method 
+    for key in reversed(write_dict):
+        if method in key:
+            new_data = json.dumps(key)
+            check_n_count(key)
+            return new_data
+        
+def check_n_count(write_string):
+    # Check if it's already in dictionary 
+    if write_string in write_dict:
+        # Increment the count for the existing key
+        write_dict[write_string] += 1
+    else:
+        # Add new key with count 1
+        write_dict[write_string] = 1
+        print(write_dict)
 
+    
 def read_input():
     while True:
         method = input("Enter method (write or read): ").strip().lower()
@@ -35,18 +62,16 @@ def read_input():
     # To send write request via serial, JSON string should be packed as 'R"({"method":write","bitrate":250000,"id":"0x123","dlc":4,"payload":"[0x11,0x22,0x33,0x44]"})"'
     if method == "write":
         try:
-            # CAN ID input
-            while True:
-                try:
-                    can_id = input("Enter CAN ID as hex value: ").strip()
-                    can_id = int(can_id, 16)
-                    if not (0 <= can_id <= 2047):  # Check Standard CAN ID range
-                        raise ValueError("Not a valid CAN ID.")
-                    formatted_id = f"0x{can_id:03X}"
-                    break  # input valid
-                except ValueError as e:
-                    print(f"Error: {e}")
-
+            
+            # Add check in case user wants to repeat last write request 
+            if method_check(method):
+                if write_dict.__len__() > 0:
+                    repeat = input("Repeat last write request? (Y/N): ").strip()
+                    if(repeat == 'Y'):
+                        j = repeat_request(method)
+                        json_send = f'R"({j})"'
+                        json_send += "\n"
+                        return json_send
             # Print PCAN-USB supported bitrates to choose
             pcan_bitrates_str = ", ".join(
                 [f"{rate} bps ({PCAN_BITRATES[rate]})" for rate in PCAN_BITRATES]
@@ -61,6 +86,18 @@ def read_input():
                             f"Unsupported bitrate. Choose one of the supported bitrates."
                         )
                     break
+                except ValueError as e:
+                    print(f"Error: {e}")
+                    
+            # CAN ID input
+            while True:
+                try:
+                    can_id = input("Enter CAN ID as hex value: ").strip()
+                    can_id = int(can_id, 16)
+                    if not (0 <= can_id <= 2047):  # Check Standard CAN ID range
+                        raise ValueError("Not a valid CAN ID.")
+                    formatted_id = f"0x{can_id:03X}"
+                    break  # input valid
                 except ValueError as e:
                     print(f"Error: {e}")
 
@@ -95,6 +132,16 @@ def read_input():
                     print("Error: All bytes must be valid hexadecimal values.")
                     continue
                 break
+            
+            cycle = input("Add frame cycle time? Y/N: ").strip()
+            if(cycle =='Y'):
+                cycle_time = int(input("Enter cycle time in ms, e.g between 1 and 10: ").strip())
+                json_data.update(
+                    {
+                        "cycle_ms": cycle_time
+                    }
+                )
+            
 
             # Pack data into JSON
             json_data.update(
@@ -114,6 +161,16 @@ def read_input():
     # In case filtering CAN frames should be enabled, JSON string should be packed as 'R"({"method":write","bitrate":250000, "can_id": "[0x123, 0x200]", "can_mask": "[0x7FF, 0x700]"})"'
     elif method == "read":
         try:
+            # Add check in case user wants to repeat last read request 
+            if method_check(method):
+                if write_dict.__len__() > 0:
+                    repeat = input("Repeat last read request? (Y/N): ").strip()
+                    if(repeat == 'Y'):
+                        j = repeat_request(method)
+                        json_send = f'R"({j})"'
+                        json_send += "\n"
+                        return json_send
+
             # Print PCAN-USB supported bitrates to choose
             pcan_bitrates_str = ", ".join(
                 [f"{rate} bps ({PCAN_BITRATES[rate]})" for rate in PCAN_BITRATES]
@@ -202,9 +259,10 @@ def read_input():
         except ValueError as e:
             print(f"Error: {e}")
             return None
-
-    # JSON object to JSON formatted string
+        
+    # Adds new JSON object to list of written JSON objects with count field
     j = json.dumps(json_data)
+    check_n_count(j)
     json_send = f'R"({j})"'
     json_send += "\n"
     return json_send
