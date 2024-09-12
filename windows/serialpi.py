@@ -4,21 +4,14 @@ import json
 
 class SerialPi:
     def __init__(self, port, baudrate, parity = "N", stopbits = 1, bytesize = 8, timeout = 0, write_timeout = 2):
-        self.port = port
-        self.baudrate = baudrate
-        self.parity = parity
-        self.stopbits = stopbits
-        self.bytesize = bytesize
-        self.timeout = timeout
-        self.write_timeout = write_timeout
         self.ser = serial.Serial(
-           port = self.port,
-           baudrate = self.baudrate,
-           timeout = self.timeout,
-           parity = self.parity,
-           stopbits = self.stopbits,
-           bytesize = self.bytesize,
-           write_timeout = self.write_timeout
+           port = port,
+           baudrate = baudrate,
+           timeout = timeout,
+           parity = parity,
+           stopbits = stopbits,
+           bytesize = bytesize,
+           write_timeout = write_timeout
         )
 
     def open_port(self):
@@ -46,10 +39,10 @@ class SerialPi:
     def read_serial(self):
         if self.ser and self.ser.is_open:
             try:
-                self.ser.in_waiting > 0
-                data = self.ser.readline().decode("utf-8").strip()
-                print_data(data)
-                return data
+                if self.ser.in_waiting > 0:
+                    data = self.ser.readline().decode("utf-8").strip()
+                    return data
+                return None
             except serial.SerialException as e:
                 print(f"Error reading from serial port: {e}")
         else:

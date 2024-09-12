@@ -51,16 +51,20 @@ def check_w_count(write_string):
         
 # Function to check read frames from serial, to track time interval between same frames and count them
 def check_r_count(read_string):
+    current_time = time.time()
     if read_string in read_dict:
-        end = time.time()
+        # Increment the count
         read_dict[read_string] += 1
-        read_dict_cycle[read_string] = end - read_dict_cycle[read_string] 
+        # Calculate the time interval since the last occurrence and update the dictionary
+        time_interval = (current_time - read_dict_cycle[read_string]) * 1000
+        read_dict_cycle[read_string] = current_time
+        return time_interval
     else:
+        # Initialize the count and timestamp for the new frame
         read_dict[read_string] = 1
-        read_dict_cycle[read_string] = 0
-        start = time.time()
-        print(read_dict)
-
+        read_dict_cycle[read_string] = current_time
+        return 0
+    
 
 def read_input():
     while True:
@@ -304,15 +308,11 @@ def print_input(method,json_string):
     else:
         json_list = json.loads(json_string)
         bitrate = json_list.get("bitrate")
-        # Check if cycle time in miliseconds is specified
-        if json_list.get("cycle_ms") == None:
-            cycle = 0
-        else: cycle = json_list.get("cycle_ms")
         if json_list.get("can_id") == None:
             print("=======================================================================================================================================")
             print(f"SENT DATA: {method} request")
             print("=======================================================================================================================================")
-            print(f"interface: {'can0'} bitrate: {bitrate} cycle_ms: {cycle} count: {write_dict[json_string]}") 
+            print(f"interface: {'can0'} bitrate: {bitrate}") 
             print("=======================================================================================================================================")
         else:
             can_id = json_list.get("can_id")
@@ -326,7 +326,7 @@ def print_input(method,json_string):
             print("=======================================================================================================================================")
             print(f"SENT DATA: {method} request")
             print("=======================================================================================================================================")
-            print(f"interface: {'can0'} bitrate: {bitrate} can_id: {can_id_str} can_mask: {can_mask_str} cycle_ms: {cycle} count: {write_dict[json_string]}") 
+            print(f"interface: {'can0'} bitrate: {bitrate} can_id: {can_id_str} can_mask: {can_mask_str}") 
             print("=======================================================================================================================================")
 
     

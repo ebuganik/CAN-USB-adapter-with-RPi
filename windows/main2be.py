@@ -16,8 +16,10 @@ if __name__ == "__main__":
             ser.write_serial(json_output)
             while True:
                 data = ser.read_serial()
-                break
-            time.sleep(0.5)
+                if data:
+                    sp.print_data(data)
+                    break
+                time.sleep(0.1)
     except KeyboardInterrupt:
         print("Keyboard Interrupt by user.")
 

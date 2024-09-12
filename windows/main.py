@@ -3,8 +3,7 @@ import serial
 import json
 import time
 
-
-def print_data(json_string):
+def print_output(json_string):
     # Read data from CAN bus is packed into JSON string
     if "{" in json_string:
         # Convert JSON into dictionary
@@ -18,7 +17,7 @@ def print_data(json_string):
         print("================================================================================================")
         print("RECEIVED DATA:")
         print("================================================================================================")
-        print(f"interface: {'can0'} can_id: {can_id} dlc: {dlc} payload: {payload_str}")
+        print(f"interface: {'can0'} can_id: {can_id} dlc: {dlc} payload: {payload_str} cycle_ms: {term.check_r_count(json_string):.2f} count: {term.read_dict[json_string]}")
         print("================================================================================================")
 
     else:
@@ -31,7 +30,7 @@ def print_data(json_string):
 
 
 if __name__ == "__main__":
-    # Constructor to be
+   # Constructor to be
     ser = serial.Serial(
         "COM13",
         115200,
@@ -44,16 +43,15 @@ if __name__ == "__main__":
     try:
         while True:
             json_output = term.read_input()
-            if json_output:
-                print(json_output)    
-            val = ser.write(json_output.encode("utf-8"))
-            print(f"Bytes written: {val}")
-
+            if(json_output):
+                val = ser.write(json_output.encode("utf-8"))
+                
             while True:
                 # Function read_serial
                 if ser.in_waiting > 0:
                     data = ser.readline().decode("utf-8").strip()
-                    print_data(data)
+                    #print(data)
+                    print_output(data)
                     break
                 time.sleep(0.1)
                 
