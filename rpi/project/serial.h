@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SERIAL_H_
+#define SERIAL_H_
 
 #include <termios.h>
 #include <iostream>
@@ -8,6 +9,7 @@
 using json = nlohmann::json;
 
 /* Termios class to handle serial communicaton */
+static int rec_data_flag = 0;
 
 class Serial
 {
@@ -20,7 +22,9 @@ public:
     int getSerial();
     void serialsend(const std::string message);
     void sendjson(const struct can_frame received);
-    json serialreceive();
+    void serialreceive(json &j);
 };
 
 void errorlog(const std::string& error_desc, const struct can_frame &frame );
+
+#endif /* SERIAL_H_ */

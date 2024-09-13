@@ -47,31 +47,54 @@ SocketCAN::~SocketCAN()
     close(socket_ctrl);
 }
 
-int SocketCAN::cansend(const struct can_frame &frame)
+int SocketCAN::cansend(const struct can_frame &frame, int cycle)
 {
     Serial inform;
-    /* Interface is already in one of these states */
-    if ((checkState() == "BUS OFF STATE") || (checkState() == "BUS WARNING STATE"))
+    std::string state = checkState();
+    if (state == "BUS OFF STATE" || state == "BUS WARNING STATE")
     {
         inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
         can_do_restart(ifname);
         return -1;
     }
-    /* Although it seems bytes are sent, they are actually buffered and state should be checked? */
-    if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
+
+    if (cycle != 0)
     {
-        std::cout << std::boolalpha << isCANUp() << std::endl;
-        throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
-        inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
-        return -1;
+        bool firstSend = true;
+
+        while (rec_data_flag == 0)
+        {
+
+            if (firstSend)
+            {
+                inform.serialsend("ACK: Sending CAN frame periodically.\n");
+                firstSend = false;
+            }
+
+            if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
+            {
+                inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
+                throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
+                return -1;
+            }
+            usleep(cycle * 1000);
+        }
+        rec_data_flag = 0;
+        return 1;
     }
     else
     {
-        inform.serialsend("ACK:CAN frame sent successfully!\n");
+
+        if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
+        {
+            inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
+            throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
+            return -1;
+        }
+        inform.serialsend("ACK: CAN frame sent successfully!\n");
         return 1;
     }
 }
-
 struct can_frame SocketCAN::jsonunpack(const json &j)
 {
     struct can_frame frame = {0};
@@ -141,7 +164,7 @@ int SocketCAN::canread()
     /* To set timeout in read function */
     struct timeval timeout;
     fd_set set;
-    int retval, check = 0;
+    int retval;
 
     FD_ZERO(&set);
     FD_SET(socket_fd, &set);
@@ -171,24 +194,24 @@ int SocketCAN::canread()
         {
 
             /* Reads one frame at the time*/
-            if (read(socket_fd, &frame, sizeof(struct can_frame)))
+            if (read(socket_fd, &receive, sizeof(struct can_frame)))
             {
 
                 if (checkState() == "ERROR ACTIVE STATE")
                 {
                     sleep(1);
                     /* In this case, it's probably SFF, RTR or EFF */
-                    frameAnalyzer(frame);
-                    displayFrame(frame);
-                    inform.sendjson(frame);
+                    frameAnalyzer(receive);
+                    displayFrame(receive);
+                    inform.sendjson(receive);
                     break;
                 }
                 /* This part checks error frames */
                 else
                 {
                     sleep(1);
-                    frameAnalyzer(frame);
-                    displayFrame(frame);
+                    frameAnalyzer(receive);
+                    displayFrame(receive);
                     auto current_time = std::chrono::steady_clock::now();
                     elapsed_time = current_time - start_time;
                 }

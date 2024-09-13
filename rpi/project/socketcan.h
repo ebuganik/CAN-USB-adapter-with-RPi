@@ -1,4 +1,6 @@
-#pragma once
+#ifndef SOCKETCAN_H_
+#define SOCKETCAN_H_
+
 #include <string>
 #include <linux/can.h>
 #include <linux/can/error.h>
@@ -6,7 +8,9 @@
 #include <net/if.h>
 #include <termios.h>
 #include <vector>
+#include <atomic>
 #include <utility>
+#include "serial.h"
 #include "../ext_lib/json.hpp" 
 
 using namespace std;
@@ -26,7 +30,7 @@ private:
 public:
     SocketCAN(int bitrate);
     ~SocketCAN();
-    int cansend(const struct can_frame &frame); 
+    int cansend(const struct can_frame &frame, int cycle); 
     struct can_frame jsonunpack(const json &j);
     int canread();
     void canfilterEnable(std::vector<std::pair<canid_t, canid_t>> &filter);
@@ -43,3 +47,5 @@ public:
     int initCAN(int bitrate);                            /* Function that uses libsocketcan functions to set CAN interface up */
     std::string checkState();
 };
+
+#endif /* SOCKETCAN_H_*/

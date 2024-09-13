@@ -13,6 +13,8 @@
 #define START_MARKER '{'
 #define END_MARKER '}'
 #define BUFFER_SIZE 200
+
+
 using namespace std;
 
 Serial::Serial()
@@ -106,7 +108,7 @@ void Serial::serialsend(const std::string message)
     }
 }
 
-json Serial::serialreceive()
+void Serial::serialreceive(json &j)
 {
     char buf[BUFFER_SIZE];
     int buf_pos = 0;
@@ -135,12 +137,16 @@ json Serial::serialreceive()
                 try
                 {
                     std::string jsonString(buf);
-                    return json::parse(jsonString);
+                    // TODO: Here set a flag that string is received, so while could stop periodically sending to CAN bus
+                    std::cout << "Flag set" << std::endl;
+                    j = json::parse(jsonString);
+                    rec_data_flag = 1;
+                    sleep(1);
+                    break;
                 }
                 catch (json::parse_error &e)
                 {
                     std::cout << "Parse error: " << e.what() << std::endl;
-                    break;
                 }
 
                 json_started = 0;
