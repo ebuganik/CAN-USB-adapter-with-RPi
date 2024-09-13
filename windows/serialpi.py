@@ -1,5 +1,4 @@
 import serial
-import time
 import json
 
 class SerialPi:
@@ -30,7 +29,6 @@ class SerialPi:
         if self.ser.is_open:
             try:
                 val = self.ser.write(json_output.encode("utf-8"))
-                print(f"Bytes written: {val}")
             except serial.SerialException as e:
                 print(f"Error writing to serial port: {e}")
         else:

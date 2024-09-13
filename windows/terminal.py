@@ -1,5 +1,8 @@
+import display as dp
 import json
 import time
+
+# Dictionaries to save info about written and read frames (+ cycles count)
 
 write_dict = {}
 read_dict = {}
@@ -25,30 +28,35 @@ PCAN_BITRATES = {
     800000: "800 kbps",
     1000000: "1 Mbps",
 }
+
+
 def method_check(method):
     for key in reversed(write_dict):
         if method in key:
             return True
     return False
 
+
 def repeat_request(method):
-    # Returns last found key by method 
+    # Returns last found key by method
     for key in reversed(write_dict):
         if method in key:
             check_w_count(key)
             return key
-        
-# Function to check write/read requests 
+
+
+# Function to check write/read requests
 def check_w_count(write_string):
-    # Check if it's already in dictionary 
+    # Check if it's already in dictionary
     if write_string in write_dict:
-       # Increment the count for the existing key
+        # Increment the count for the existing key
         write_dict[write_string] += 1
     else:
         # Add new key with count 1
         write_dict[write_string] = 1
         print(write_dict)
-        
+
+
 # Function to check read frames from serial, to track time interval between same frames and count them
 def check_r_count(read_string):
     current_time = time.time()
@@ -64,11 +72,13 @@ def check_r_count(read_string):
         read_dict[read_string] = 1
         read_dict_cycle[read_string] = current_time
         return 0
-    
+
 
 def read_input():
     while True:
-        method = input("Enter method (write or read): ").strip().lower()
+        method = (
+            input("Enter method (write or read or CTRL+C to exit): ").strip().lower()
+        )
         if method in ["write", "read"]:
             break
         else:
@@ -79,12 +89,12 @@ def read_input():
     # To send write request via serial, JSON string should be packed as 'R"({"method":write","bitrate":250000,"id":"0x123","dlc":4,"payload":"[0x11,0x22,0x33,0x44]"})"'
     if method == "write":
         try:
-            
-            # Add check in case user wants to repeat last write request 
+
+            # Add check in case user wants to repeat last write request
             if method_check(method):
                 if write_dict.__len__() > 0:
                     repeat = input("Repeat last write request? (Y/N): ").strip()
-                    if(repeat == 'Y'):
+                    if repeat == "Y":
                         res_w = repeat_request(method)
                         json_send = f'R"({res_w})"'
                         json_send += "\n"
@@ -105,7 +115,7 @@ def read_input():
                     break
                 except ValueError as e:
                     print(f"Error: {e}")
-                    
+
             # CAN ID input
             while True:
                 try:
@@ -149,18 +159,18 @@ def read_input():
                     print("Error: All bytes must be valid hexadecimal values.")
                     continue
                 break
-            
-            cycle = input("Add frame cycle time? Y/N: ").strip()
-            if(cycle =='Y'):
+            while True:
+                cycle = input("Add frame cycle time? Y/N: ").strip()
+                if cycle in ["Y", "N"]:
+                    break
+                else:
+                    print("Invalid input. Enter 'Y' or 'N'.")
+                    
+            if cycle == "Y":
                 cycle_time = int(input("Enter cycle time in ms, e.g between 1 and 10: ").strip())
-                json_data.update(
-                    {
-                        "cycle_ms": cycle_time
-                    }
-                )
-            
-
-            # Pack data into JSON
+                json_data.update({"cycle_ms": cycle_time})
+                      
+                # Pack data into JSON
             json_data.update(
                 {
                     "can_id": formatted_id,
@@ -178,11 +188,11 @@ def read_input():
     # In case filtering CAN frames should be enabled, JSON string should be packed as 'R"({"method":read","bitrate":250000, "can_id": "[0x123, 0x200]", "can_mask": "[0x7FF, 0x700]"})"'
     elif method == "read":
         try:
-            # Add check in case user wants to repeat last read request 
+            # Add check in case user wants to repeat last read request
             if method_check(method):
                 if write_dict.__len__() > 0:
                     repeat = input("Repeat last read request? (Y/N): ").strip()
-                    if(repeat == 'Y'):
+                    if repeat == "Y":
                         res_r = repeat_request(method)
                         json_send = f'R"({res_r})"'
                         json_send += "\n"
@@ -276,57 +286,11 @@ def read_input():
         except ValueError as e:
             print(f"Error: {e}")
             return None
-        
+
     # Adds new JSON object to list of written JSON objects with count field
     j = json.dumps(json_data)
     check_w_count(j)
-    print_input(json_data["method"],j)
+    dp.print_input(json_data["method"], j)
     json_send = f'R"({j})"'
-    json_send+= "\n"
+    json_send += "\n"
     return json_send
-
-def print_input(method,json_string):
-    if method == "write":
-        json_list = json.loads(json_string)
-        can_id = json_list.get("can_id")
-        bitrate = json_list.get("bitrate")
-        dlc = json_list.get("dlc")
-        payload = json_list.get("payload")
-        payload_strip = payload.strip("[]")
-        payload_bytes = [int(byte, 16) for byte in payload_strip.split(",")]
-        payload_str = " ".join(f"0x{byte:x}" for byte in payload_bytes)
-        # Check if cycle time in miliseconds is specified
-        if json_list.get("cycle_ms") == None:
-            cycle = 0
-        else: cycle = json_list.get("cycle_ms")
-        
-        print("=======================================================================================================================================")
-        print(f"SENT DATA: {method} request")
-        print("=======================================================================================================================================")
-        print(f"interface: {'can0'} bitrate: {bitrate} can_id: {can_id} dlc: {dlc} payload: {payload_str} cycle_ms: {cycle} count: {write_dict[json_string]}") 
-        print("=======================================================================================================================================")
-    else:
-        json_list = json.loads(json_string)
-        bitrate = json_list.get("bitrate")
-        if json_list.get("can_id") == None:
-            print("=======================================================================================================================================")
-            print(f"SENT DATA: {method} request")
-            print("=======================================================================================================================================")
-            print(f"interface: {'can0'} bitrate: {bitrate}") 
-            print("=======================================================================================================================================")
-        else:
-            can_id = json_list.get("can_id")
-            can_mask = json_list.get("can_mask")
-            can_id_strip = can_id.strip("[]")
-            can_mask_strip = can_mask.strip("[]")
-            can_id_bytes = [int(byte, 16) for byte in can_id_strip.split(",")]
-            can_mask_bytes = [int(byte, 16) for byte in can_mask_strip.split(",")]
-            can_id_str = " ".join(f"0x{byte:x}" for byte in can_id_bytes)
-            can_mask_str = " ".join(f"0x{byte:x}" for byte in can_mask_bytes)
-            print("=======================================================================================================================================")
-            print(f"SENT DATA: {method} request")
-            print("=======================================================================================================================================")
-            print(f"interface: {'can0'} bitrate: {bitrate} can_id: {can_id_str} can_mask: {can_mask_str}") 
-            print("=======================================================================================================================================")
-
-    
