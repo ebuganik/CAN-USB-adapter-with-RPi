@@ -1,4 +1,4 @@
-# CAN-USB-adapter-with-RPi
+# Design and Implementation of a CAN-USB adapter using a Raspberry Pi device
 
 ## About the project
 This repository is part of a practical project for an undergraduate thesis at the Faculty of Electrical Engineering in Banja Luka, majoring in electronics. The project aims to develop a device similar to PEAKCAN using a Raspberry Pi. The Raspberry Pi will receive and process CAN messages through a C++ application, then transmit them via an interface like USB to a PC, where they will be displayed using a Python application. Additionally, requests from the PC will be sent to read from the CAN bus and to transmit data onto the bus. 
