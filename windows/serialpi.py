@@ -56,28 +56,4 @@ class SerialPi:
         else:
             print(f"Serial port {self.ser.portstr} is already closed")
             
-def print_data(json_string):
-    
-    # Read data from CAN bus is packed into JSON string
-    if "{" in json_string:
-        # Convert JSON into dictionary
-        json_list = json.loads(json_string)
-        can_id = json_list.get("can_id")
-        dlc = json_list.get("dlc")
-        payload = json_list.get("payload")
-        payload_strip = payload.strip("[]")
-        payload_bytes = [int(byte, 16) for byte in payload_strip.split(",")]
-        payload_str = " ".join(f"0x{byte:x}" for byte in payload_bytes)
-        print("================================================================================================")
-        print("RECEIVED DATA:")
-        print("================================================================================================")
-        print(f"interface: {'can0'} can_id: {can_id} dlc: {dlc} payload: {payload_str}")
-        print("================================================================================================")
 
-    else:
-        # Information about success or state of a CAN node is received as a normal string
-        print("================================================================================================")
-        print("RECEIVED DATA:")
-        print("================================================================================================")
-        print(json_string)
-        print("================================================================================================")
