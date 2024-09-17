@@ -14,7 +14,6 @@
 #define END_MARKER '}'
 #define BUFFER_SIZE 200
 
-
 using namespace std;
 
 Serial::Serial()
@@ -137,11 +136,15 @@ void Serial::serialreceive(json &j)
                 try
                 {
                     std::string jsonString(buf);
-                    // TODO: Here set a flag that string is received, so while could stop periodically sending to CAN bus
-                    std::cout << "Flag set" << std::endl;
                     j = json::parse(jsonString);
-                    rec_data_flag = 1;
-                    sleep(1);
+                    /* Lock mutex */
+                    std::lock_guard<std::mutex> lock(m);
+                    /* Set global variable */
+                    data_ready = true;
+                    std::cout << std::boolalpha << data_ready;
+                    m.unlock();
+                    /* Inform cansend */
+                    cv.notify_one();
                     break;
                 }
                 catch (json::parse_error &e)
@@ -158,7 +161,7 @@ void Serial::serialreceive(json &j)
     }
 }
 
-// TODO: Add header aka description of log file content 
+// TODO: Add header aka description of log file content
 // TIMESTAMP : ERROR DESCRIPTION
 // ERROR FRAME CAN_ID PAYLOAD
 void errorlog(const std::string &error_desc, const struct can_frame &frame)
@@ -184,5 +187,4 @@ void errorlog(const std::string &error_desc, const struct can_frame &frame)
     dataout << std::left << std::setw(15) << "interface:"
             << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
             << std::setw(15) << std::hex << std::showbase << frame.can_id << std::endl;
-
 }

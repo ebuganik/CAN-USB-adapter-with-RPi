@@ -8,7 +8,6 @@
 #include <net/if.h>
 #include <termios.h>
 #include <vector>
-#include <atomic>
 #include <utility>
 #include "serial.h"
 #include "../ext_lib/json.hpp" 

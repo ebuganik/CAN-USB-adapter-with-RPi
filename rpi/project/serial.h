@@ -4,13 +4,20 @@
 #include <termios.h>
 #include <iostream>
 #include <string>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 #include "../ext_lib/json.hpp" 
 
+using namespace std;
 using json = nlohmann::json;
 
+/* Thread sync */
+extern std::mutex m;
+extern std::condition_variable cv;
+/* Global variable to track if new request is received or not */
+extern bool data_ready;
 /* Termios class to handle serial communicaton */
-static int rec_data_flag = 0;
-
 class Serial
 {
     int serial_fd;
