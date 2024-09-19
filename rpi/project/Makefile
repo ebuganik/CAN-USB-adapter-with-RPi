@@ -28,4 +28,4 @@ run: $(TARGET) setcaps
 # Clean rule to remove generated files
 .PHONY: clean
 clean:
-	\rm -f  $(TARGET) $(OBJS)
+	\rm -f $(TARGET) $(OBJS)
