@@ -11,6 +11,7 @@
 #include <sys/select.h>
 #include <chrono>
 #include <thread>
+
 using namespace std::chrono;
 
 std::mutex m;
@@ -53,10 +54,12 @@ SocketCAN::~SocketCAN()
 int SocketCAN::cansend(const struct can_frame &frame, int cycle)
 {
     Serial inform;
-    std::unique_lock<std::mutex> lock(m);
-    /* Data_ready false because we are already trying to write to CAN bus */
     data_ready = false;
-    lock.unlock();
+    {
+        std::lock_guard<std::mutex> lock(m);
+        /* Data_ready false because we are already trying to write to CAN bus */
+        data_ready = false;
+    }
     std::cout << data_ready << std::endl;
     std::string state = checkState();
     if (state == "BUS OFF STATE" || state == "BUS WARNING STATE")
@@ -73,9 +76,13 @@ int SocketCAN::cansend(const struct can_frame &frame, int cycle)
         {
             /* This is where we check on data_ready */
 
-            std::unique_lock<std::mutex> lock(m);
+            // std::unique_lock<std::mutex> lock(m);
             if (data_ready)
             {
+                std::unique_lock<std::mutex> lock(m);
+                std::cout << "Period sending stopped" << std::endl;
+                data_ready = false;
+                std::cout << data_ready << std::endl;
                 inform.serialsend("Data ready signal received, stopping periodic sending.\n");
                 break;
             }
@@ -94,7 +101,7 @@ int SocketCAN::cansend(const struct can_frame &frame, int cycle)
                     firstSend = false;
                 }
             }
-
+            // usleep(cycle*1000);
             std::this_thread::sleep_for(std::chrono::milliseconds(cycle));
         }
         return 1;

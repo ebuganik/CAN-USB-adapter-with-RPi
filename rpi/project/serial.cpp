@@ -138,11 +138,12 @@ void Serial::serialreceive(json &j)
                     std::string jsonString(buf);
                     j = json::parse(jsonString);
                     /* Lock mutex */
-                    std::lock_guard<std::mutex> lock(m);
-                    /* Set global variable */
-                    data_ready = true;
+                    {
+                        std::lock_guard<std::mutex> lock(m);
+                        /* Set global variable */
+                        data_ready = true;
+                    }
                     std::cout << std::boolalpha << data_ready;
-                    m.unlock();
                     /* Inform cansend */
                     cv.notify_one();
                     break;
@@ -161,9 +162,6 @@ void Serial::serialreceive(json &j)
     }
 }
 
-// TODO: Add header aka description of log file content
-// TIMESTAMP : ERROR DESCRIPTION
-// ERROR FRAME CAN_ID PAYLOAD
 void errorlog(const std::string &error_desc, const struct can_frame &frame)
 {
     std::ofstream dataout;
