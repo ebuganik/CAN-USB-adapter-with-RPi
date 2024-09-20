@@ -54,13 +54,12 @@ SocketCAN::~SocketCAN()
 int SocketCAN::cansend(const struct can_frame &frame, int cycle)
 {
     Serial inform;
-    data_ready = false;
     {
         std::lock_guard<std::mutex> lock(m);
         /* Data_ready false because we are already trying to write to CAN bus */
         data_ready = false;
     }
-    std::cout << data_ready << std::endl;
+    std::cout << "In cansend: " << std::boolalpha << data_ready << std::endl;
     std::string state = checkState();
     if (state == "BUS OFF STATE" || state == "BUS WARNING STATE")
     {
@@ -75,15 +74,11 @@ int SocketCAN::cansend(const struct can_frame &frame, int cycle)
         while (1)
         {
             /* This is where we check on data_ready */
-
-            // std::unique_lock<std::mutex> lock(m);
             if (data_ready)
             {
-                std::unique_lock<std::mutex> lock(m);
+                std::lock_guard<std::mutex> lock(m);
                 std::cout << "Period sending stopped" << std::endl;
                 data_ready = false;
-                std::cout << data_ready << std::endl;
-                inform.serialsend("Data ready signal received, stopping periodic sending.\n");
                 break;
             }
 

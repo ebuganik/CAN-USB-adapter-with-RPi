@@ -30,7 +30,7 @@ int main()
                 struct can_frame to_send = socket.jsonunpack(j);
                 if (j.contains("cycle_ms"))
                 {
-                    std::cout << std::boolalpha << data_ready << std::endl;
+
                     std::thread canThread(&SocketCAN::cansend, &socket, to_send, j["cycle_ms"]);
                     canThread.join();
                     // socket.cansend(to_send, j["cycle_ms"]);
@@ -56,6 +56,7 @@ int main()
         }
         sleep(3);
     }
+    // TODO
     catch (const std::exception &e)
     {
         if (std::string(e.what()) == "Error in initializing CAN interface!")

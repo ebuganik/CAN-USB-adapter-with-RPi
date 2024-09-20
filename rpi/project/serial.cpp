@@ -137,15 +137,15 @@ void Serial::serialreceive(json &j)
                 {
                     std::string jsonString(buf);
                     j = json::parse(jsonString);
-                    /* Lock mutex */
-                    {
+
+                    { /* Lock mutex */
                         std::lock_guard<std::mutex> lock(m);
                         /* Set global variable */
                         data_ready = true;
                     }
-                    std::cout << std::boolalpha << data_ready;
+                    std::cout << "In serial: " << std::boolalpha << data_ready;
                     /* Inform cansend */
-                    cv.notify_one();
+                    // cv.notify_one();
                     break;
                 }
                 catch (json::parse_error &e)
