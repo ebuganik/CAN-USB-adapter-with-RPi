@@ -8,6 +8,8 @@
 #include <condition_variable>
 #include <atomic>
 #include "../ext_lib/json.hpp" 
+#include <future>
+#include <atomic>
 
 using namespace std;
 using json = nlohmann::json;
@@ -16,7 +18,7 @@ using json = nlohmann::json;
 extern std::mutex m;
 extern std::condition_variable cv;
 /* Global variable to track if new request is received or not */
-extern bool data_ready;
+extern std::atomic<bool> data_ready;
 /* Termios class to handle serial communicaton */
 class Serial
 {

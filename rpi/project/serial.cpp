@@ -9,6 +9,7 @@
 #include <fstream>
 #include <fcntl.h>
 #include <linux/can/raw.h>
+// #include <future>
 
 #define START_MARKER '{'
 #define END_MARKER '}'
@@ -109,11 +110,11 @@ void Serial::serialsend(const std::string message)
 
 void Serial::serialreceive(json &j)
 {
+    std::cout << "A" << std::endl;
     char buf[BUFFER_SIZE];
     int buf_pos = 0;
     int bytes_read = 0;
     int json_started = 0;
-
     while (1)
     {
         bytes_read = read(serial_fd, &buf[buf_pos], 1);
@@ -137,13 +138,12 @@ void Serial::serialreceive(json &j)
                 {
                     std::string jsonString(buf);
                     j = json::parse(jsonString);
-
                     { /* Lock mutex */
-                        std::lock_guard<std::mutex> lock(m);
+                        std::unique_lock<std::mutex> lock(m);
                         /* Set global variable */
                         data_ready = true;
                     }
-                    std::cout << "In serial: " << std::boolalpha << data_ready;
+                    std::cout << "data_ready in serial: " << std::boolalpha << data_ready << std::endl;
                     /* Inform cansend */
                     // cv.notify_one();
                     break;

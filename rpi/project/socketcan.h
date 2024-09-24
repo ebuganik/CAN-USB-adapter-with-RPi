@@ -21,6 +21,7 @@ class SocketCAN
 private:
     int socket_fd;   /* fd to read and write */
     int socket_ctrl; /* fd to control interface status */
+    int bitrate;
     const char* ifname = "can0";
     struct ifreq ifr;
     struct sockaddr_can addr;
@@ -29,7 +30,9 @@ private:
 public:
     SocketCAN(int bitrate);
     ~SocketCAN();
-    int cansend(const struct can_frame &frame, int cycle); 
+    int get_fd();
+    void set_fd(int s);
+    void cansend(int* cycle); 
     struct can_frame jsonunpack(const json &j);
     int canread();
     void canfilterEnable(std::vector<std::pair<canid_t, canid_t>> &filter);

@@ -11,25 +11,29 @@
 #include <sys/select.h>
 #include <chrono>
 #include <thread>
+#include <atomic>
 
+using namespace std;
 using namespace std::chrono;
 
+extern bool cycle_ms_rec;
 std::mutex m;
 std::condition_variable cv;
-bool data_ready;
+std::atomic<bool> data_ready;
 
 SocketCAN::SocketCAN(int bitrate)
 {
-
+    this->bitrate = bitrate;
     if (initCAN(bitrate) != 0)
     {
-        std::cout << std::endl;
+        // std::cout << std::endl;
         std::cout << "can0 interface set to bitrate " << bitrate << std::endl;
     }
     else
         throw std::runtime_error("Error in initializing CAN interface!");
 
     socket_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+    std::cout << "Socket: " << socket_fd << std::endl;
     if (socket_fd < 0)
         throw std::runtime_error("Error in creating socket: " + std::string(strerror(errno)));
 
@@ -47,46 +51,73 @@ SocketCAN::SocketCAN(int bitrate)
 
 SocketCAN::~SocketCAN()
 {
-
+    std::cout << "Calling destructor of socket_fd" << socket_fd << " with bitrate " << bitrate << std::endl;
     close(socket_fd);
     close(socket_ctrl);
 }
-int SocketCAN::cansend(const struct can_frame &frame, int cycle)
+void SocketCAN::cansend(int *cycle)
 {
+    // TODO: function needs to receive unpacked json data to send via CAN bus
+    /* Here just to test frame */
+    struct can_frame frame;
+    frame.can_id = 0x123;
+    frame.can_dlc = 5;
+    frame.data[0] = 0x01;
+    frame.data[1] = 0x04;
+    frame.data[2] = 0x22;
+    frame.data[3] = 0x34;
+    frame.data[4] = 0x6;
+
     Serial inform;
+    // {
+    //     std::lock_guard<std::mutex> lock(m);
+    //     /* Data_ready false because we are already trying to write to CAN bus */
+    //     data_ready = false;
+    // }
+    // std::cout << "data_ready in cansend, changed: " << std::boolalpha << data_ready << std::endl;
+    // std::string state = checkState();
+    // if (state == "BUS OFF STATE" || state == "BUS WARNING STATE")
+    // {
+    //     inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
+    //     can_do_restart(ifname);
+    //     return -1;
+    // }
+    bool firstSend = true;
+
+    while (1)
     {
-        std::lock_guard<std::mutex> lock(m);
-        /* Data_ready false because we are already trying to write to CAN bus */
-        data_ready = false;
-    }
-    std::cout << "In cansend: " << std::boolalpha << data_ready << std::endl;
-    std::string state = checkState();
-    if (state == "BUS OFF STATE" || state == "BUS WARNING STATE")
-    {
-        inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
-        can_do_restart(ifname);
-        return -1;
-    }
-    if (cycle != 0)
-    {
-        bool firstSend = true;
+        /* This is where we check on data_ready */
+        // if (data_ready)
+        // {
+        //     std::lock_guard<std::mutex> lock(m);
+        //     std::cout << "Period sending stopped" << std::endl;
+        //     data_ready = false;
+        //     break;
+        // }
+
+        {
+            std::unique_lock<std::mutex> lock(m);
+            cv.wait(lock, []
+                    { return cycle_ms_rec; });
+        }
 
         while (1)
         {
-            /* This is where we check on data_ready */
-            if (data_ready)
             {
-                std::lock_guard<std::mutex> lock(m);
-                std::cout << "Period sending stopped" << std::endl;
-                data_ready = false;
-                break;
+                std::unique_lock<std::mutex> lock(m);
+                if (data_ready)
+                {
+                    data_ready = false;
+                    break;
+                }
             }
-
+            
             if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
             {
-                inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
+                inform.serialsend("NACK: Sending CAN frame unsuccessful!\n");
+                std::cout << socket_fd << std::endl;
                 throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
-                return -1;
+                return;
             }
             else
             {
@@ -97,20 +128,8 @@ int SocketCAN::cansend(const struct can_frame &frame, int cycle)
                 }
             }
             // usleep(cycle*1000);
-            std::this_thread::sleep_for(std::chrono::milliseconds(cycle));
+            std::this_thread::sleep_for(std::chrono::milliseconds(*cycle));
         }
-        return 1;
-    }
-    else
-    {
-        if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
-        {
-            inform.serialsend("NACK: CAN frame sent unsuccessfully!\n");
-            throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
-            return -1;
-        }
-        inform.serialsend("ACK: CAN frame sent successfully!\n");
-        return 1;
     }
 }
 
@@ -645,4 +664,16 @@ void SocketCAN::displayFrame(const struct can_frame &frame)
         std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
     }
     std::cout << std::endl;
+}
+
+int SocketCAN::get_fd()
+{
+    std::cout << "Getter of socket_fd" << std::endl;
+    return socket_fd;
+}
+
+void SocketCAN::set_fd(int s)
+{
+    std::cout << "Setter of socket_fd" << std::endl;
+    socket_fd = s;
 }
