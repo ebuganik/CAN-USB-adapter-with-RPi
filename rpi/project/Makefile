@@ -1,15 +1,16 @@
-TARGET = main
+TARGET = test
 CXX = g++
 LIBS = -lsocketcan
 CXXFLAGS = -Wall -g 
 THREAD_FLAGS = -pthread
-SRCS = main.cpp socketcan.cpp serial.cpp
+SRCS = test.cpp socketcan.cpp serial.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 # Set capabilities
 SUDO_SET_CAPS = sudo setcap cap_net_raw,cap_net_admin+ep ${TARGET}
 
 all:$(TARGET) run
+
 
 # Rule to link object files into the target executable
 %.o: %.cpp

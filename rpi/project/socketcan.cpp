@@ -16,7 +16,6 @@
 using namespace std;
 using namespace std::chrono;
 
-extern bool cycle_ms_rec;
 std::mutex m;
 std::condition_variable cv;
 std::atomic<bool> data_ready;
@@ -26,7 +25,6 @@ SocketCAN::SocketCAN(int bitrate)
     this->bitrate = bitrate;
     if (initCAN(bitrate) != 0)
     {
-        // std::cout << std::endl;
         std::cout << "can0 interface set to bitrate " << bitrate << std::endl;
     }
     else
@@ -51,49 +49,38 @@ SocketCAN::SocketCAN(int bitrate)
 
 SocketCAN::~SocketCAN()
 {
-    std::cout << "Calling destructor of socket_fd" << socket_fd << " with bitrate " << bitrate << std::endl;
-    close(socket_fd);
-    close(socket_ctrl);
+    if (socket_fd != -1)
+    {
+        std::cout << "Calling destructor of socket_fd" << socket_fd << " with bitrate " << bitrate << std::endl;
+        close(socket_fd);
+        close(socket_ctrl);
+    }
 }
-void SocketCAN::cansend(int *cycle)
+void SocketCAN::cansendperiod(int *cycle)
 {
-    // TODO: function needs to receive unpacked json data to send via CAN bus
-    /* Here just to test frame */
+    std::cout << "CANSEND" << std::endl;
+    // TODO: function needs to receive unpacked json data to send via CAN bus or json to parse here and pack as a frame to CAN bus
+
+    /* Here just to test frame sending */
     struct can_frame frame;
     frame.can_id = 0x123;
     frame.can_dlc = 5;
     frame.data[0] = 0x01;
-    frame.data[1] = 0x04;
-    frame.data[2] = 0x22;
-    frame.data[3] = 0x34;
-    frame.data[4] = 0x6;
+    frame.data[1] = 0x02;
+    frame.data[2] = 0x03;
+    frame.data[3] = 0x04;
+    frame.data[4] = 0x05;
 
     Serial inform;
-    // {
-    //     std::lock_guard<std::mutex> lock(m);
-    //     /* Data_ready false because we are already trying to write to CAN bus */
-    //     data_ready = false;
-    // }
-    // std::cout << "data_ready in cansend, changed: " << std::boolalpha << data_ready << std::endl;
-    // std::string state = checkState();
-    // if (state == "BUS OFF STATE" || state == "BUS WARNING STATE")
-    // {
-    //     inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
-    //     can_do_restart(ifname);
-    //     return -1;
-    // }
-    bool firstSend = true;
-
+    if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
+    {
+        inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
+        can_do_restart(ifname);
+        return;
+    }
     while (1)
     {
-        /* This is where we check on data_ready */
-        // if (data_ready)
-        // {
-        //     std::lock_guard<std::mutex> lock(m);
-        //     std::cout << "Period sending stopped" << std::endl;
-        //     data_ready = false;
-        //     break;
-        // }
+        bool firstSend = true;
 
         {
             std::unique_lock<std::mutex> lock(m);
@@ -101,6 +88,7 @@ void SocketCAN::cansend(int *cycle)
                     { return cycle_ms_rec; });
         }
 
+        std::cout << "Passing after cycle_ms is true" << std::endl;
         while (1)
         {
             {
@@ -111,11 +99,10 @@ void SocketCAN::cansend(int *cycle)
                     break;
                 }
             }
-            
+
             if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
             {
                 inform.serialsend("NACK: Sending CAN frame unsuccessful!\n");
-                std::cout << socket_fd << std::endl;
                 throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
                 return;
             }
@@ -127,12 +114,46 @@ void SocketCAN::cansend(int *cycle)
                     firstSend = false;
                 }
             }
-            // usleep(cycle*1000);
             std::this_thread::sleep_for(std::chrono::milliseconds(*cycle));
         }
+
     }
 }
+void SocketCAN::cansend(int *cycle)
+{
+    std::cout << "CANSEND" << std::endl;
+    // TODO: function needs to receive unpacked json data to send via CAN bus or json to parse here and pack as a frame to CAN bus
 
+    /* Here just to test frame sending */
+    struct can_frame frame;
+    frame.can_id = 0x123;
+    frame.can_dlc = 5;
+    frame.data[0] = 0x01;
+    frame.data[1] = 0x02;
+    frame.data[2] = 0x03;
+    frame.data[3] = 0x04;
+    frame.data[4] = 0x05;
+
+    Serial inform;
+    if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
+    {
+        inform.serialsend("Unable to send data, bus off! Restarting interface...\n");
+        can_do_restart(ifname);
+        return;
+    }
+
+    if (write(socket_fd, &frame, sizeof(frame)) != sizeof(struct can_frame))
+    {
+        inform.serialsend("NACK: Sending CAN frame unsuccessful!\n");
+        throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
+        return;
+    }
+    else
+    {
+        inform.serialsend("ACK: Sending CAN frame successful!\n");
+        return;
+    }
+}
 struct can_frame SocketCAN::jsonunpack(const json &j)
 {
     struct can_frame frame = {0};
@@ -619,32 +640,32 @@ std::string SocketCAN::checkState()
     switch (state)
     {
     case CAN_STATE_ERROR_ACTIVE:
-        std::cout << "CAN state: ERROR_ACTIVE" << std::endl;
+        // std::cout << "CAN state: ERROR_ACTIVE" << std::endl;
         bus_state += "ERROR ACTIVE STATE";
         break;
     case CAN_STATE_ERROR_WARNING:
-        std::cout << "CAN state: ERROR_WARNING" << std::endl;
+        // std::cout << "CAN state: ERROR_WARNING" << std::endl;
         bus_state += "ERROR WARNING STATE";
         break;
     case CAN_STATE_ERROR_PASSIVE:
-        std::cout << "CAN state: ERROR_PASSIVE" << std::endl;
+        // std::cout << "CAN state: ERROR_PASSIVE" << std::endl;
         bus_state += "ERROR PASSIVE STATE";
         break;
     case CAN_STATE_BUS_OFF:
-        std::cout << "CAN state: BUS_OFF" << std::endl;
+        // std::cout << "CAN state: BUS_OFF" << std::endl;
         // TODO: restart
         bus_state += "BUS OFF STATE";
         break;
     case CAN_STATE_STOPPED:
-        std::cout << "CAN state: STOPPED" << std::endl;
+        // std::cout << "CAN state: STOPPED" << std::endl;
         bus_state += "STOPPED STATE";
         break;
     case CAN_STATE_SLEEPING:
-        std::cout << "CAN state: SLEEPING" << std::endl;
+        // std::cout << "CAN state: SLEEPING" << std::endl;
         bus_state += "SLEEPING STATE";
         break;
     default:
-        std::cout << "CAN state: UNKNOWN" << std::endl;
+        // std::cout << "CAN state: UNKNOWN" << std::endl;
         bus_state += "UNKNOWN STATE";
         break;
     }

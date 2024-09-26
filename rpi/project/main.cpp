@@ -18,9 +18,9 @@ int main()
         {
 
             json j;
-            // serial.serialreceive(j);
-            std::thread serialThread(&Serial::serialreceive, &serial, std::ref(j));
-            serialThread.join();
+            serial.serialreceive(j);
+            // std::thread serialThread(&Serial::serialreceive, &serial, std::ref(j));
+            // serialThread.join();
             SocketCAN socket(j["bitrate"]);
             socket.errorFilter();
 

@@ -15,6 +15,9 @@
 using namespace std;
 using json = nlohmann::json;
 
+extern bool cycle_ms_rec;
+extern bool periodic;
+
 /* SocketCAN class to handle CAN bus communication */
 class SocketCAN
 {
@@ -32,7 +35,8 @@ public:
     ~SocketCAN();
     int get_fd();
     void set_fd(int s);
-    void cansend(int* cycle); 
+    void cansendperiod(int* cycle); 
+    void cansend(int* cycle);
     struct can_frame jsonunpack(const json &j);
     int canread();
     void canfilterEnable(std::vector<std::pair<canid_t, canid_t>> &filter);

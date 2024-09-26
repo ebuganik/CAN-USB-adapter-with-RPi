@@ -16,7 +16,6 @@
 #define BUFFER_SIZE 200
 
 using namespace std;
-
 Serial::Serial()
 {
     serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
@@ -110,7 +109,7 @@ void Serial::serialsend(const std::string message)
 
 void Serial::serialreceive(json &j)
 {
-    std::cout << "A" << std::endl;
+    std::cout << "SERIAL" << std::endl;
     char buf[BUFFER_SIZE];
     int buf_pos = 0;
     int bytes_read = 0;

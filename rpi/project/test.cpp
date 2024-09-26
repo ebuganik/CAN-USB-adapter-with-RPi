@@ -15,9 +15,9 @@ int main()
 {
     Serial serial;
     SocketCAN socket(200000);
-    int cycle = 0, bitrate;
+    int cycle = 0;
     json j;
-    std::thread can_thread(&SocketCAN::cansend, &socket, &cycle);
+    std::thread can_thread(&SocketCAN::cansendperiod, &socket, &cycle);
     while (1)
     {
         std::thread serial_thread(&Serial::serialreceive, &serial, std::ref(j));
@@ -25,40 +25,43 @@ int main()
 
         if (j["method"] == "write")
         {
-            std::cout << "Write function detected" << std::endl;
+            std::cout << "---Write function detected---" << std::endl;
             if (j.contains("cycle_ms"))
             {
                 cycle_ms_rec = true;
-                // cv.notify_one();
-                std::cout << "cycle_ms in main:" << std::boolalpha << cycle_ms_rec << std::endl;
                 cycle = j["cycle_ms"];
             }
-            bitrate = j["bitrate"];
 
             if (cycle_ms_rec)
             {
                 std::unique_lock<std::mutex> lock(m);
                 close(socket.get_fd());
-                SocketCAN s(bitrate);
-                socket = s;
-                s.set_fd(-1);
+                SocketCAN socket(j["bitrate"]);
+                socket.set_fd(-1);
                 cv.notify_one();
             }
             else
             {
-                // TODO: adjust cansend for sending only one
+                {
+                    cycle_ms_rec = false;
+                    cycle = 0;
+                }
+                std::cout << "---Write once---" << std::endl;
+                close(socket.get_fd());
+                SocketCAN socket(j["bitrate"]);
+                socket.set_fd(-1);
+                socket.cansend(&cycle);
             }
         }
         else
         {
             {
                 cycle_ms_rec = false;
-                std::cout << "cycle_ms_rec in read request: " << std::boolalpha<< cycle_ms_rec << std::endl;
             }
-            std::cout << "Read function detected" << std::endl;
+            std::cout << "---Read function detected---" << std::endl;
             close(socket.get_fd());
             SocketCAN s(j["bitrate"]);
-            socket = s;
+            socket.set_fd(s.get_fd());
             s.set_fd(-1);
             socket.canread();
         }
