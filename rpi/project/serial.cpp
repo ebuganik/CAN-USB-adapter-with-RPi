@@ -9,13 +9,13 @@
 #include <fstream>
 #include <fcntl.h>
 #include <linux/can/raw.h>
-// #include <future>
 
 #define START_MARKER '{'
 #define END_MARKER '}'
 #define BUFFER_SIZE 200
 
 using namespace std;
+
 Serial::Serial()
 {
     serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
@@ -142,9 +142,6 @@ void Serial::serialreceive(json &j)
                         /* Set global variable */
                         data_ready = true;
                     }
-                    std::cout << "data_ready in serial: " << std::boolalpha << data_ready << std::endl;
-                    /* Inform cansend */
-                    // cv.notify_one();
                     break;
                 }
                 catch (json::parse_error &e)

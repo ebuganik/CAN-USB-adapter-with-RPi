@@ -22,7 +22,7 @@ std::atomic<bool> data_ready;
 
 SocketCAN::SocketCAN(int bitrate)
 {
-    this->bitrate = bitrate;
+
     if (initCAN(bitrate) != 0)
     {
         std::cout << "can0 interface set to bitrate " << bitrate << std::endl;
@@ -31,7 +31,6 @@ SocketCAN::SocketCAN(int bitrate)
         throw std::runtime_error("Error in initializing CAN interface!");
 
     socket_fd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
-    std::cout << "Socket: " << socket_fd << std::endl;
     if (socket_fd < 0)
         throw std::runtime_error("Error in creating socket: " + std::string(strerror(errno)));
 
@@ -51,25 +50,13 @@ SocketCAN::~SocketCAN()
 {
     if (socket_fd != -1)
     {
-        std::cout << "Calling destructor of socket_fd" << socket_fd << " with bitrate " << bitrate << std::endl;
         close(socket_fd);
         close(socket_ctrl);
     }
 }
-void SocketCAN::cansendperiod(int *cycle)
+void SocketCAN::cansendperiod(const struct can_frame &frame, int *cycle)
 {
-    std::cout << "CANSEND" << std::endl;
-    // TODO: function needs to receive unpacked json data to send via CAN bus or json to parse here and pack as a frame to CAN bus
-
-    /* Here just to test frame sending */
-    struct can_frame frame;
-    frame.can_id = 0x123;
-    frame.can_dlc = 5;
-    frame.data[0] = 0x01;
-    frame.data[1] = 0x02;
-    frame.data[2] = 0x03;
-    frame.data[3] = 0x04;
-    frame.data[4] = 0x05;
+    std::cout << "CANSEND PERIOD" << std::endl;
 
     Serial inform;
     if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
@@ -116,24 +103,12 @@ void SocketCAN::cansendperiod(int *cycle)
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(*cycle));
         }
-
     }
 }
-void SocketCAN::cansend(int *cycle)
+void SocketCAN::cansend(const struct can_frame &frame)
 {
-    std::cout << "CANSEND" << std::endl;
-    // TODO: function needs to receive unpacked json data to send via CAN bus or json to parse here and pack as a frame to CAN bus
-
-    /* Here just to test frame sending */
-    struct can_frame frame;
-    frame.can_id = 0x123;
-    frame.can_dlc = 5;
-    frame.data[0] = 0x01;
-    frame.data[1] = 0x02;
-    frame.data[2] = 0x03;
-    frame.data[3] = 0x04;
-    frame.data[4] = 0x05;
-
+    std::cout << "CANSEND ONCE" << std::endl;
+    
     Serial inform;
     if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
     {
@@ -156,6 +131,7 @@ void SocketCAN::cansend(int *cycle)
 }
 struct can_frame SocketCAN::jsonunpack(const json &j)
 {
+    std::cout << "Unpacked" << std::endl;
     struct can_frame frame = {0};
 
     if (j["method"] == "write")
