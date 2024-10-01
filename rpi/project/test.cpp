@@ -18,7 +18,7 @@ int main()
     struct can_frame to_send = {0};
     int cycle = 0;
     json j;
-    std::thread can_thread(&SocketCAN::cansendperiod, &socket, to_send, &cycle);
+    std::thread can_thread(&SocketCAN::cansendperiod, &socket, std::ref(to_send), &cycle);
     while (1)
     {
         std::thread serial_thread(&Serial::serialreceive, &serial, std::ref(j));
@@ -38,9 +38,10 @@ int main()
             }
 
             to_send = socket.jsonunpack(j);
+
             if (cycle_ms_rec)
             {
-                std::cout << "---Write periodically---" << std::endl;
+                std::cout << "Cycle time in ms: " << std::dec<< cycle << std::endl;
                 std::unique_lock<std::mutex> lock(m);
                 close(socket.get_fd());
                 SocketCAN socket(j["bitrate"]);
@@ -49,7 +50,7 @@ int main()
             }
             else
             {
-                std::cout << "---Write once---" << std::endl;
+                std::cout << "No cycle time added." << std::endl;
                 close(socket.get_fd());
                 SocketCAN s(j["bitrate"]);
                 socket.set_fd(s.get_fd());

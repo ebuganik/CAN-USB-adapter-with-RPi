@@ -1,5 +1,6 @@
 #include "socketcan.h"
 #include "serial.h"
+#include <iostream>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -13,6 +14,7 @@
 #include <thread>
 #include <atomic>
 
+
 using namespace std;
 using namespace std::chrono;
 
@@ -25,7 +27,7 @@ SocketCAN::SocketCAN(int bitrate)
 
     if (initCAN(bitrate) != 0)
     {
-        std::cout << "can0 interface set to bitrate " << bitrate << std::endl;
+        std::cout << "can0 interface set to bitrate " << std::dec<< bitrate << std::endl;
     }
     else
         throw std::runtime_error("Error in initializing CAN interface!");
@@ -56,8 +58,6 @@ SocketCAN::~SocketCAN()
 }
 void SocketCAN::cansendperiod(const struct can_frame &frame, int *cycle)
 {
-    std::cout << "CANSEND PERIOD" << std::endl;
-
     Serial inform;
     if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
     {
@@ -75,7 +75,6 @@ void SocketCAN::cansendperiod(const struct can_frame &frame, int *cycle)
                     { return cycle_ms_rec; });
         }
 
-        std::cout << "Passing after cycle_ms is true" << std::endl;
         while (1)
         {
             {
@@ -107,8 +106,6 @@ void SocketCAN::cansendperiod(const struct can_frame &frame, int *cycle)
 }
 void SocketCAN::cansend(const struct can_frame &frame)
 {
-    std::cout << "CANSEND ONCE" << std::endl;
-    
     Serial inform;
     if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
     {
@@ -131,7 +128,6 @@ void SocketCAN::cansend(const struct can_frame &frame)
 }
 struct can_frame SocketCAN::jsonunpack(const json &j)
 {
-    std::cout << "Unpacked" << std::endl;
     struct can_frame frame = {0};
 
     if (j["method"] == "write")
@@ -616,32 +612,25 @@ std::string SocketCAN::checkState()
     switch (state)
     {
     case CAN_STATE_ERROR_ACTIVE:
-        // std::cout << "CAN state: ERROR_ACTIVE" << std::endl;
         bus_state += "ERROR ACTIVE STATE";
         break;
     case CAN_STATE_ERROR_WARNING:
-        // std::cout << "CAN state: ERROR_WARNING" << std::endl;
         bus_state += "ERROR WARNING STATE";
         break;
     case CAN_STATE_ERROR_PASSIVE:
-        // std::cout << "CAN state: ERROR_PASSIVE" << std::endl;
         bus_state += "ERROR PASSIVE STATE";
         break;
     case CAN_STATE_BUS_OFF:
-        // std::cout << "CAN state: BUS_OFF" << std::endl;
         // TODO: restart
         bus_state += "BUS OFF STATE";
         break;
     case CAN_STATE_STOPPED:
-        // std::cout << "CAN state: STOPPED" << std::endl;
         bus_state += "STOPPED STATE";
         break;
     case CAN_STATE_SLEEPING:
-        // std::cout << "CAN state: SLEEPING" << std::endl;
         bus_state += "SLEEPING STATE";
         break;
     default:
-        // std::cout << "CAN state: UNKNOWN" << std::endl;
         bus_state += "UNKNOWN STATE";
         break;
     }
@@ -665,12 +654,10 @@ void SocketCAN::displayFrame(const struct can_frame &frame)
 
 int SocketCAN::get_fd()
 {
-    std::cout << "Getter of socket_fd" << std::endl;
     return socket_fd;
 }
 
 void SocketCAN::set_fd(int s)
 {
-    std::cout << "Setter of socket_fd" << std::endl;
     socket_fd = s;
 }

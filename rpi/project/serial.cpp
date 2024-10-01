@@ -109,7 +109,6 @@ void Serial::serialsend(const std::string message)
 
 void Serial::serialreceive(json &j)
 {
-    std::cout << "SERIAL" << std::endl;
     char buf[BUFFER_SIZE];
     int buf_pos = 0;
     int bytes_read = 0;
@@ -161,7 +160,6 @@ void Serial::serialreceive(json &j)
 void errorlog(const std::string &error_desc, const struct can_frame &frame)
 {
     std::ofstream dataout;
-
     /* Get current time as time_t */
     auto now = std::chrono::system_clock::now();
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
