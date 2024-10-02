@@ -1,6 +1,6 @@
 import serial
 import json
-
+import display as dp
 class SerialPi:
     def __init__(self, port, baudrate, parity = "N", stopbits = 1, bytesize = 8, timeout = 0, write_timeout = 2):
         self.ser = serial.Serial(

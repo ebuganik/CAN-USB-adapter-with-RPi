@@ -29,14 +29,14 @@ PCAN_BITRATES = {
     1000000: "1 Mbps",
 }
 
-
+# Function to verify if a write or read request has already been sent before (is stored in write_dict)
 def method_check(method):
     for key in reversed(write_dict):
         if method in key:
             return True
     return False
 
-
+# Function that returns previous write/read request to be executed 
 def repeat_request(method):
     # Returns last found key by method
     for key in reversed(write_dict):
@@ -45,7 +45,7 @@ def repeat_request(method):
             return key
 
 
-# Function to check write/read requests
+# Function to check write/read requests and update the value of the counters
 def check_w_count(write_string):
     # Check if it's already in dictionary
     if write_string in write_dict:
@@ -54,26 +54,25 @@ def check_w_count(write_string):
     else:
         # Add new key with count 1
         write_dict[write_string] = 1
-        print(write_dict)
 
 
-# Function to check read frames from serial, to track time interval between same frames and count them
-def check_r_count(read_string):
+# Function that checks read frames by the can_id field, calculates the time interval between two read frames with the same can_id, and updates the value of the counters
+def check_r_count(formatted_can_id):
     current_time = time.time()
-    if read_string in read_dict:
+    if formatted_can_id in read_dict:
         # Increment the count
-        read_dict[read_string] += 1
-        # Calculate the time interval since the last occurrence and update the dictionary
-        time_interval = (current_time - read_dict_cycle[read_string]) * 1000
-        read_dict_cycle[read_string] = current_time
+        read_dict[formatted_can_id] += 1
+        # Calculate the time interval since the last occurence and update the dictionary
+        time_interval = (current_time - read_dict_cycle[formatted_can_id]) * 1000
+        read_dict_cycle[formatted_can_id] = current_time
         return time_interval
     else:
         # Initialize the count and timestamp for the new frame
-        read_dict[read_string] = 1
-        read_dict_cycle[read_string] = current_time
+        read_dict[formatted_can_id] = 1
+        read_dict_cycle[formatted_can_id] = current_time
         return 0
 
-
+# Function to input write/read request parameters, combined into a JSON string
 def read_input():
     while True:
         method = (
@@ -91,9 +90,9 @@ def read_input():
         try:
 
             # Add check in case user wants to repeat last write request
-            if method_check(method):
-                if write_dict.__len__() > 0:
-                    repeat = input("Repeat last write request? (Y/N): ").strip()
+            if write_dict.__len__() > 0:
+                if method_check(method):
+                    repeat = input("Repeat last write request? (Y/N): ").strip().upper()
                     if repeat == "Y":
                         res_w = repeat_request(method)
                         json_send = f'R"({res_w})"'
@@ -159,15 +158,11 @@ def read_input():
                     print("Error: All bytes must be valid hexadecimal values.")
                     continue
                 break
-            while True:
-                cycle = input("Add frame cycle time? Y/N: ").strip()
-                if cycle in ["Y", "N"]:
-                    break
-                else:
-                    print("Invalid input. Enter 'Y' or 'N'.")
-                    
+            
+            # Add cycle time 
+            cycle = input("Add frame cycle time? Y/N: ").strip().upper()     
             if cycle == "Y":
-                cycle_time = int(input("Enter cycle time in ms, e.g between 1 and 10: ").strip())
+                cycle_time = int(input("Enter cycle time in ms: ").strip())
                 json_data.update({"cycle_ms": cycle_time})
                       
                 # Pack data into JSON
@@ -189,9 +184,9 @@ def read_input():
     elif method == "read":
         try:
             # Add check in case user wants to repeat last read request
-            if method_check(method):
-                if write_dict.__len__() > 0:
-                    repeat = input("Repeat last read request? (Y/N): ").strip()
+            if write_dict.__len__() > 0:
+                if method_check(method):
+                    repeat = input("Repeat last read request? (Y/N): ").strip().upper()
                     if repeat == "Y":
                         res_r = repeat_request(method)
                         json_send = f'R"({res_r})"'
@@ -216,7 +211,7 @@ def read_input():
                     print(f"Error: {e}")
 
             # Check if user wants enabled filtering
-            mask = input("Enable filtering of CAN frames? Y/N: ").strip()
+            mask = input("Enable filtering of CAN frames? Y/N: ").strip().upper()
             if mask == "Y":
                 # Enter CAN ID
                 while True:

@@ -47,6 +47,7 @@ def print_output(json_string):
         # Convert JSON into dictionary
         json_list = json.loads(json_string)
         can_id = json_list.get("can_id")
+        formatted_dict_id = f'{{"can_id": "{can_id}"}}'
         dlc = json_list.get("dlc")
         payload = json_list.get("payload")
         payload_strip = payload.strip("[]")
@@ -54,7 +55,7 @@ def print_output(json_string):
         payload_str = " ".join(f"0x{byte:x}" for byte in payload_bytes)
         print("=======================================================================================================================================")
         print("RECEIVED DATA:")
-        print(f"interface: {'can0'} can_id: {can_id} dlc: {dlc} payload: {payload_str} cycle_ms: {term.check_r_count(json_string):.2f} count: {term.read_dict[json_string]}")
+        print(f"interface: {'can0'} can_id: {can_id} dlc: {dlc} payload: {payload_str} cycle_ms: {term.check_r_count(formatted_dict_id):.2f} count: {term.read_dict[formatted_dict_id]}")
         print("=======================================================================================================================================")
 
     else:

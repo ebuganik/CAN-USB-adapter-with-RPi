@@ -1,7 +1,6 @@
 import terminal as term
 import serialpi as sp
 import display as dp
-import json
 import time
 
 if __name__ == "__main__":
