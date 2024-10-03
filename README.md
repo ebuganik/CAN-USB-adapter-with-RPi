@@ -7,6 +7,7 @@ This repository is part of a practical project for an undergraduate thesis at th
 ## Raspberry Pi Setup and Hardware Interface Configuration
 > Include the configuration of the Raspberry Pi device, covering both serial communication and connection to the hardware interface. Also, provide details on the connections used with the Raspberry Pi and the additional circuit designed for CAN communication.
 ## Setup Instructions and Launching the Applications
+> Getting started with G++
 ### Raspberry Pi (C++ Application)
 After cloning the repository, the C++ application for the Raspberry Pi will be located in the ```rpi/project```  folder. This application is designed to handle CAN communication, as well as process requests that come over the serial port. Ensure that the Raspberry Pi is properly connected to the CAN network and configured to use CAN interface, while also setting up the serial connection for receiving and processing requests from external devices. This application interacts with the CAN network using the ``libsocketcan`` library so it's necessary that this library is previously installed, as it follows:
 ```
