@@ -16,67 +16,70 @@
 
 using namespace std;
 
+/* Constructor to initialize serial communication */
+
 Serial::Serial()
 {
-    serial_fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
-    if (serial_fd < 0)
+    m_serialfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
+    // TODO: exception to error code
+    if (m_serialfd < 0)
         throw std::runtime_error("Failed to open serial port. Check if it is used by another device. " + std::string(strerror(errno)));
-
-    struct termios config;
-
-    /* Get the current options for the port and set the baudrates to 115200 */
-    tcgetattr(serial_fd, &config);
-    cfsetispeed(&config, B115200);
-    cfsetospeed(&config, B115200);
+        
+    /* Get the current options of the port and set baudrates to 115200 */
+    tcgetattr(m_serialfd, &m_config);
+    cfsetispeed(&m_config, B115200);
+    cfsetospeed(&m_config, B115200);
 
     /* No parity (8N1) */
-    config.c_cflag &= ~PARENB;
-    config.c_cflag &= ~CSTOPB;
-    config.c_cflag &= ~CSIZE;
-    config.c_cflag |= CS8;
+    m_config.c_cflag &= ~PARENB;
+    m_config.c_cflag &= ~CSTOPB;
+    m_config.c_cflag &= ~CSIZE;
+    m_config.c_cflag |= CS8;
 
     /* Hardware flow control disabled */
     /* Receiver enabled and local mode set */
-    config.c_cflag &= ~CRTSCTS;
-    config.c_cflag |= CREAD | CLOCAL;
+    m_config.c_cflag &= ~CRTSCTS;
+    m_config.c_cflag |= CREAD | CLOCAL;
     /* Software control disabled */
     /* Raw input (non-canonical), with no output processing */
-    config.c_iflag &= ~(IXON | IXOFF | IXANY);
-    config.c_iflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
-    config.c_oflag &= ~OPOST;
+    m_config.c_iflag &= ~(IXON | IXOFF | IXANY);
+    m_config.c_iflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+    m_config.c_oflag &= ~OPOST;
 
-    config.c_cc[VMIN] = 10;
-    config.c_cc[VTIME] = 0;
+    m_config.c_cc[VMIN] = 10;
+    m_config.c_cc[VTIME] = 0;
 
-    if (tcsetattr(serial_fd, TCSANOW, &config) < 0)
+    if (tcsetattr(m_serialfd, TCSANOW, &m_config) < 0)
     {
         throw std::runtime_error("Unable to set serial configuration.\n");
     }
-    tcflush(serial_fd, TCIFLUSH);
+    tcflush(m_serialfd, TCIFLUSH);
 }
 
-int Serial::getSerial()
+int Serial::getSerial() const
 {
-    return serial_fd;
+    return m_serialfd;
 }
 
 Serial::~Serial()
 {
-    close(serial_fd);
+    close(m_serialfd);
 }
 
-void Serial::sendjson(const struct can_frame received)
+/* Pack received frames from CAN bus into JSON strings and send them via serial */
+// TODO: Minimize function
+void Serial::sendJson(const struct can_frame receivedFrame)
 {
-    json j;
+    json jsonRequest;
     std::stringstream cc;
-    cc << std::hex << std::setw(3) << std::showbase << received.can_id;
-    j["can_id"] = cc.str();
-    j["dlc"] = received.can_dlc;
+    cc << std::hex << std::setw(3) << std::showbase << receivedFrame.can_id;
+    jsonRequest["can_id"] = cc.str();
+    jsonRequest["dlc"] = receivedFrame.can_dlc;
     std::vector<std::string> payload_hex;
-    for (int i = 0; i < received.can_dlc; ++i)
+    for (int i = 0; i < receivedFrame.can_dlc; ++i)
     {
         std::stringstream byte_ss;
-        byte_ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(received.data[i]);
+        byte_ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(receivedFrame.data[i]);
         payload_hex.push_back(byte_ss.str());
     }
 
@@ -92,54 +95,59 @@ void Serial::sendjson(const struct can_frame received)
         payload_ss << payload_hex[i];
     }
     payload_ss << "]";
-    j["payload"] = payload_ss.str();
-    std::string send_string = j.dump();
-    serialsend(send_string);
+    jsonRequest["payload"] = payload_ss.str();
+    std::string reqString = jsonRequest.dump();
+    serialSend(reqString);
 }
 
-void Serial::serialsend(const std::string message)
+void Serial::serialSend(const std::string statusMessage)
 {
-    const char *ch_message = message.c_str();
-    int nbytes = write(serial_fd, ch_message, strlen(ch_message));
+    const char *pMessage = statusMessage.c_str();
+    int nbytes = write(m_serialfd, pMessage, strlen(pMessage));
+    // TODO: exception to error code 
     if (nbytes < 0)
     {
         throw std::runtime_error("No bytes written to file. " + std::string(strerror(errno)));
     }
 }
 
-void Serial::serialreceive(json &j)
+/* Function to read from serial port */
+
+void Serial::serialReceive(json &serialRequest)
 {
     char buf[BUFFER_SIZE];
-    int buf_pos = 0;
-    int bytes_read = 0;
-    int json_started = 0;
+    int bufPos = 0;
+    int bytesRead = 0;
+    int jsonStarted = 0;
     while (1)
     {
-        bytes_read = read(serial_fd, &buf[buf_pos], 1);
-        if (bytes_read > 0)
+        bytesRead = read(m_serialfd, &buf[bufPos], 1);
+        if (bytesRead > 0)
         {
-            if (buf[buf_pos] == START_MARKER)
+            if (buf[bufPos] == START_MARKER)
             {
-                json_started = 1;
-                buf_pos = 0;
+                jsonStarted = 1;
+                bufPos = 0;
             }
 
-            if (json_started)
+            if (jsonStarted)
             {
-                buf_pos += bytes_read;
+                bufPos += bytesRead;
             }
 
-            if (buf[buf_pos - 1] == END_MARKER)
+            if (buf[bufPos - 1] == END_MARKER)
             {
-                buf[buf_pos] = '\0';
+                buf[bufPos] = '\0';
+
+                // TODO: exception to error code
                 try
                 {
-                    std::string jsonString(buf);
-                    j = json::parse(jsonString);
+                    std::string reqString(buf);
+                    serialRequest = json::parse(reqString);
                     { /* Lock mutex */
                         std::unique_lock<std::mutex> lock(m);
                         /* Set global variable */
-                        data_ready = true;
+                        dataReady = true;
                     }
                     break;
                 }
@@ -148,35 +156,11 @@ void Serial::serialreceive(json &j)
                     std::cout << "Parse error: " << e.what() << std::endl;
                 }
 
-                json_started = 0;
-                buf_pos = 0;
+                jsonStarted = 0;
+                bufPos = 0;
                 /* Initialize integer array with zeros */
                 memset((void *)buf, '0', sizeof(buf));
             }
         }
     }
-}
-
-void errorlog(const std::string &error_desc, const struct can_frame &frame)
-{
-    std::ofstream dataout;
-    /* Get current time as time_t */
-    auto now = std::chrono::system_clock::now();
-    std::time_t now_time = std::chrono::system_clock::to_time_t(now);
-
-    /* Format the time */
-    std::tm tm = *std::localtime(&now_time);
-
-    /* Open file in append mode */
-    dataout.open("error.log", std::ios::app);
-    if (!dataout)
-    {
-        std::cout << "Error: file couldn't be opened!" << std::endl;
-        return;
-    }
-    std::cout << std::endl;
-    dataout << "(" << std::put_time(&tm, "%F %T") << "): " << error_desc << std::endl;
-    dataout << std::left << std::setw(15) << "interface:"
-            << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
-            << std::setw(15) << std::hex << std::showbase << frame.can_id << std::endl;
 }

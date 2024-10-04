@@ -1,9 +1,9 @@
-TARGET = test
+TARGET = main
 CXX = g++
 LIBS = -lsocketcan
 CXXFLAGS = -Wall -g 
 THREAD_FLAGS = -pthread
-SRCS = test.cpp socketcan.cpp serial.cpp
+SRCS = main.cpp socketcan.cpp serial.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 # Set capabilities

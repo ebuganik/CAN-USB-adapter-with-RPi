@@ -18,22 +18,21 @@ using json = nlohmann::json;
 extern std::mutex m;
 extern std::condition_variable cv;
 /* Global variable to track if new request is received or not */
-extern std::atomic<bool> data_ready;
+extern std::atomic<bool> dataReady;
+
 /* Termios class to handle serial communicaton */
 class Serial
 {
-    int serial_fd;
-    struct termios config;
+    int m_serialfd;
+    struct termios m_config;
 
 public:
     Serial();
     ~Serial();
-    int getSerial();
-    void serialsend(const std::string message);
-    void sendjson(const struct can_frame received);
-    void serialreceive(json &j);
+    int getSerial() const;
+    void serialSend(const std::string statusMessage);
+    void sendJson(const struct can_frame receivedFrame);
+    void serialReceive(json &serialRequest);
 };
-
-void errorlog(const std::string& error_desc, const struct can_frame &frame );
 
 #endif /* SERIAL_H_ */
