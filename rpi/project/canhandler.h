@@ -34,7 +34,8 @@ public:
     void setFd(int t_socketfd);
     void canSendPeriod(const struct can_frame &frame, int* cycle); 
     void canSend(const struct can_frame &frame);
-    struct can_frame jsonUnpack(const json &request);
+    struct can_frame unpackWriteReq(const json &request);
+    void unpackFilterReq(const json &request); // TODO: define this function!
     int canRead();
     void canFilterEnable(std::vector<std::pair<canid_t, canid_t>> &filterPair);
     void canFilterDisable();
