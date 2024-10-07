@@ -3,7 +3,7 @@ CXX = g++
 LIBS = -lsocketcan
 CXXFLAGS = -Wall -g 
 THREAD_FLAGS = -pthread
-SRCS = main.cpp socketcan.cpp serial.cpp
+SRCS = main.cpp canhandler.cpp serial.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 # Set capabilities

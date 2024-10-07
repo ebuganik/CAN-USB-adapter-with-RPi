@@ -1,4 +1,4 @@
-#include "socketcan.h"
+#include "canhandler.h"
 #include "serial.h"
 #include <iostream>
 #include <unistd.h>
@@ -14,7 +14,6 @@
 #include <thread>
 #include <atomic>
 
-
 using namespace std;
 using namespace std::chrono;
 
@@ -26,10 +25,10 @@ CANHandler::CANHandler(int bitrate)
 {
 
     // TODO: Change constructor. Exception to error code
-    
+
     if (initCAN(bitrate) != 0)
     {
-        std::cout << "can0 interface set to bitrate " << std::dec<< bitrate << std::endl;
+        std::cout << "can0 interface set to bitrate " << std::dec << bitrate << std::endl;
     }
     else
         throw std::runtime_error("Error in initializing CAN interface!");
@@ -128,9 +127,10 @@ void CANHandler::canSend(const struct can_frame &frame)
     }
 }
 
-// TODO: Minimize function
-struct can_frame CANHandler::jsonUnpack(const json &request)
+// TODO: Minimize function. Make this function accessible only for write requests (by default, no need for checking)
+struct can_frame CANHandler::unpackWriteReq(const json &request)
 {
+
     struct can_frame frame = {0};
 
     if (request["method"] == "write")

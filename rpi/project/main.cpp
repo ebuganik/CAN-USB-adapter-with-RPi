@@ -1,5 +1,5 @@
 #include "serial.h"
-#include "socketcan.h"
+#include "canhandler.h"
 #include <unistd.h>
 #include <iostream>
 #include <iomanip>
@@ -37,7 +37,7 @@ int main()
                 cycleTimeRec = false;
             }
 
-            sendFrame = socket.jsonUnpack(serialRequest);
+            sendFrame = socket.unpackWriteReq(serialRequest);
 
             if (cycleTimeRec)
             {
@@ -70,7 +70,8 @@ int main()
             s.setFd(-1);
             if (serialRequest.contains("can_id") && serialRequest.contains("can_mask"))
             {
-                socket.jsonUnpack(serialRequest);
+                socket.unpackWriteReq(serialRequest);
+                // socket.unpackFilterReq(serialRequest);
             }
             socket.errorFilter();
             socket.canRead();
