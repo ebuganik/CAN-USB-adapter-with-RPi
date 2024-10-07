@@ -1,5 +1,5 @@
-#ifndef SOCKETCAN_H_
-#define SOCKETCAN_H_
+#ifndef CANHANDLER_H_
+#define CANHANDLER_H_
 
 #include <string>
 #include <linux/can.h>
@@ -28,14 +28,16 @@ private:
     struct sockaddr_can m_addr;
 
 public:
-    CANHandler(int bitrate);
+    CANHandler();
     ~CANHandler();
-    int getFd() const;
-    void setFd(int t_socketfd);
+    CANHandler(const CANHandler&) = delete;
+    CANHandler& operator=(const CANHandler&) = delete;
+    CANHandler(CANHandler&& other);
+    CANHandler& operator=(CANHandler &&other) noexcept;
     void canSendPeriod(const struct can_frame &frame, int* cycle); 
     void canSend(const struct can_frame &frame);
     struct can_frame unpackWriteReq(const json &request);
-    void unpackFilterReq(const json &request); // TODO: define this function!
+    // void unpackFilterReq(const json &request); // TODO: define this function!
     int canRead();
     void canFilterEnable(std::vector<std::pair<canid_t, canid_t>> &filterPair);
     void canFilterDisable();
@@ -47,8 +49,9 @@ public:
     std::string getProtErrorLocDesc(__u8 protError);    /* error in CAN protocol (location) / data[3] */
     std::string getTransceiverStatus(__u8 statusError); /* error status of CAN-transceiver / data[4] */
     void frameAnalyzer(const struct can_frame &frame);
-    int initCAN(int bitrate);                            /* Function that uses libsocketcan functions to set CAN interface up */
     std::string checkState();
 };
 
-#endif /* SOCKETCAN_H_*/
+ int initCAN(int bitrate);   
+
+#endif /* CANHANDLER_H_*/

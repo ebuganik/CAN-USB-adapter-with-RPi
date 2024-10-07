@@ -21,18 +21,10 @@ std::mutex m;
 std::condition_variable cv;
 std::atomic<bool> dataReady;
 
-CANHandler::CANHandler(int bitrate)
+CANHandler::CANHandler()
 {
 
-    // TODO: Change constructor. Exception to error code
-
-    if (initCAN(bitrate) != 0)
-    {
-        std::cout << "can0 interface set to bitrate " << std::dec << bitrate << std::endl;
-    }
-    else
-        throw std::runtime_error("Error in initializing CAN interface!");
-
+    // Exception to error code
     m_socketfd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (m_socketfd < 0)
         throw std::runtime_error("Error in creating socket: " + std::string(strerror(errno)));
@@ -49,9 +41,23 @@ CANHandler::CANHandler(int bitrate)
     }
 }
 
+CANHandler::CANHandler(CANHandler &&other) : m_socketfd(other.m_socketfd)
+{
+    other.m_socketfd = -1;
+}
+CANHandler& CANHandler::operator=(CANHandler &&other) noexcept
+{
+    if (this != &other)
+    {
+        close(m_socketfd); 
+        m_socketfd = other.m_socketfd;
+        other.m_socketfd = -1; 
+    }
+    return *this;
+}
 CANHandler::~CANHandler()
 {
-    if (m_socketfd != -1)
+    if (m_socketfd)
     {
         close(m_socketfd);
     }
@@ -564,7 +570,7 @@ void CANHandler::frameAnalyzer(const struct can_frame &frame)
     }
 }
 
-int CANHandler::initCAN(int bitrate)
+int initCAN(int bitrate)
 {
 
     /* In case interface can0 is up */
@@ -574,7 +580,6 @@ int CANHandler::initCAN(int bitrate)
     if (can_set_bitrate("can0", bitrate) != 0)
     {
         std::cout << "Unable to set interface bitrate!" << std::endl;
-        return -1;
     }
     /* Set interface up */
     if (can_do_start("can0") != 0)
@@ -638,14 +643,4 @@ void CANHandler::displayFrame(const struct can_frame &frame)
         std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
     }
     std::cout << std::endl;
-}
-
-int CANHandler::getFd() const
-{
-    return m_socketfd;
-}
-
-void CANHandler::setFd(int t_socketfd)
-{
-    m_socketfd = t_socketfd;
 }

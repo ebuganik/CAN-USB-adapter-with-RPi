@@ -15,15 +15,15 @@ int main()
 {
     // TODO: Minimize while loop
     Serial serial;
-    CANHandler socket(200000);
+    initCAN(200000);
+    CANHandler socket;
     struct can_frame sendFrame = {0};
     int cycleTime = 0;
     json serialRequest;
     std::thread canThread(&CANHandler::canSendPeriod, &socket, std::ref(sendFrame), &cycleTime);
     while (1)
     {
-        std::thread serialThread(&Serial::serialReceive, &serial, std::ref(serialRequest));
-        serialThread.join();
+        serial.serialReceive(serialRequest);
         if (serialRequest["method"] == "write")
         {
             std::cout << "----------Write function detected----------" << std::endl;
@@ -43,19 +43,17 @@ int main()
             {
                 std::cout << "Cycle time in ms: " << std::dec << cycleTime << std::endl;
                 std::unique_lock<std::mutex> lock(m);
-                close(socket.getFd());
-                CANHandler socket(serialRequest["bitrate"]);
-                socket.setFd(-1);
+                initCAN(serialRequest["bitrate"]);
+                CANHandler s;
+                socket = move(s);
                 cv.notify_one();
             }
             else
             {
                 std::cout << "No cycle time added." << std::endl;
-                close(socket.getFd());
-                CANHandler s(serialRequest["bitrate"]);
-                socket.setFd(s.getFd());
-                s.setFd(-1);
-                socket.canSend(sendFrame);
+                initCAN(serialRequest["bitrate"]);
+                CANHandler writeOp;
+                writeOp.canSend(sendFrame);
             }
         }
         else if (serialRequest["method"] == "read")
@@ -64,17 +62,15 @@ int main()
                 cycleTimeRec = false;
             }
             std::cout << "----------Read function detected----------" << std::endl;
-            close(socket.getFd());
-            CANHandler s(serialRequest["bitrate"]);
-            socket.setFd(s.getFd());
-            s.setFd(-1);
+            initCAN(serialRequest["bitrate"]);
+            CANHandler readOp;
             if (serialRequest.contains("can_id") && serialRequest.contains("can_mask"))
             {
-                socket.unpackWriteReq(serialRequest);
+                readOp.unpackWriteReq(serialRequest);
                 // socket.unpackFilterReq(serialRequest);
             }
-            socket.errorFilter();
-            socket.canRead();
+            readOp.errorFilter();
+            readOp.canRead();
         }
         else
         {
