@@ -21,10 +21,10 @@ std::mutex m;
 std::condition_variable cv;
 std::atomic<bool> dataReady;
 
+std::atomic<bool> cycleTimeRec(false);
 CANHandler::CANHandler()
 {
 
-    // Exception to error code
     m_socketfd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (m_socketfd < 0)
         throw std::runtime_error("Error in creating socket: " + std::string(strerror(errno)));
@@ -45,13 +45,13 @@ CANHandler::CANHandler(CANHandler &&other) : m_socketfd(other.m_socketfd)
 {
     other.m_socketfd = -1;
 }
-CANHandler& CANHandler::operator=(CANHandler &&other) noexcept
+CANHandler &CANHandler::operator=(CANHandler &&other) noexcept
 {
     if (this != &other)
     {
-        close(m_socketfd); 
+        close(m_socketfd);
         m_socketfd = other.m_socketfd;
-        other.m_socketfd = -1; 
+        other.m_socketfd = -1;
     }
     return *this;
 }
@@ -65,7 +65,8 @@ CANHandler::~CANHandler()
 void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 {
     Serial inform;
-    if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
+    int res = can_get_state(m_ifname, &m_state);
+    if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
         inform.serialSend("Unable to send data, bus off! Restarting interface...\n");
         can_do_restart(m_ifname);
@@ -78,7 +79,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
         {
             std::unique_lock<std::mutex> lock(m);
             cv.wait(lock, []
-                    { return cycleTimeRec; });
+                    { return cycleTimeRec.load(); });
         }
 
         while (1)
@@ -113,7 +114,8 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 void CANHandler::canSend(const struct can_frame &frame)
 {
     Serial inform;
-    if (checkState() == "BUS OFF STATE" || checkState() == "BUS WARNING STATE")
+    int res = can_get_state(m_ifname, &m_state);
+    if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
         inform.serialSend("Unable to send data, bus off! Restarting interface...\n");
         can_do_restart(m_ifname);
@@ -132,74 +134,48 @@ void CANHandler::canSend(const struct can_frame &frame)
         return;
     }
 }
+std::vector<int> CANHandler::parsePayload(const std::string &payload)
+{
+    std::vector<int> parsedData;
+    std::istringstream stream(payload.substr(1, payload.length() - 2));
+    std::string dataByte;
 
-// TODO: Minimize function. Make this function accessible only for write requests (by default, no need for checking)
+    while (std::getline(stream, dataByte, ','))
+    {
+        parsedData.push_back(std::stoi(dataByte, nullptr, 16));
+    }
+
+    return parsedData;
+}
 struct can_frame CANHandler::unpackWriteReq(const json &request)
 {
+    can_frame packedFrame;
+    packedFrame.can_id = std::stoi(request["can_id"].get<std::string>(), nullptr, 16);
+    packedFrame.can_dlc = request["dlc"];
+    auto payload = request["payload"].get<std::string>();
+    auto parsedPayload = parsePayload(payload);
+    std::copy(parsedPayload.begin(), parsedPayload.begin() + packedFrame.can_dlc, packedFrame.data);
+    displayFrame(packedFrame);
+    return packedFrame;
+}
 
-    struct can_frame frame = {0};
-
-    if (request["method"] == "write")
+void CANHandler::unpackFilterReq(const json &request)
+{
+    auto idString = request["can_id"].get<std::string>(), maskString = request["can_mask"].get<std::string>();
+    auto parsedId = parsePayload(idString), parsedMask = parsePayload(maskString);
+    std::vector<std::pair<int, int>> filterPair;
+    for (size_t i = 0; i < parsedId.size(); i++)
     {
-        std::string id = request["can_id"];
-        int val = stoi(id, 0, 16);
-        int dlc = request["dlc"];
-        std::string dataString = request["payload"];
-        std::vector<int> data;
-        std::string cleanData = dataString.substr(1, dataString.length() - 2);
-        std::stringstream stringStream(cleanData);
-        std::string item;
-        int convValue;
-
-        while (std::getline(stringStream, item, ','))
-        {
-            std::stringstream(item) >> std::hex >> convValue;
-            data.push_back(convValue);
-        }
-
-        /* Appply json parameters to can_frame struct */
-        frame.can_id = val;
-        frame.can_dlc = dlc;
-        for (int i = 0; i < frame.can_dlc; i++)
-        {
-
-            frame.data[i] = data[i];
-        }
-        displayFrame(frame);
-        return frame;
+        filterPair.emplace_back(parsedId[i], parsedMask[i]);
     }
 
-    else /* condition for read method, in case it's necessary to extract filterPair */
-    {
-        // TODO: this part of code can be used for another function e.g. extractFilter
-        std::vector<canid_t> canids, canmasks;
-        std::string can_id = request["can_id"], can_mask = request["can_mask"];
-        std::string cleanData1 = can_id.substr(1, can_id.length() - 2);
-        std::string cleanData2 = can_mask.substr(1, can_mask.length() - 2);
-        std::stringstream stringStream1(cleanData1), stringStream2(cleanData2);
-        std::string item1, item2;
-        int convVal1, convVal2;
-        while (std::getline(stringStream1, item1, ',') && std::getline(stringStream2, item2, ','))
-        {
-            std::stringstream(item1) >> std::hex >> convVal1;
-            std::stringstream(item2) >> std::hex >> convVal2;
-            canids.push_back(convVal1);
-            canmasks.push_back(convVal2);
-        }
-        std::vector<std::pair<canid_t, canid_t>> filterPair;
-        for (size_t i = 0; i < canids.size(); ++i)
-        {
-            filterPair.emplace_back(canids[i], canmasks[i]);
-        }
-        canFilterEnable(filterPair);
-
-        return frame;
-    }
+    canFilterEnable(filterPair);
 }
 
 int CANHandler::canRead()
 {
     Serial inform;
+    int res;
     struct can_frame readFrame;
     /* To set timeout in read function */
     struct timeval timeout;
@@ -236,8 +212,9 @@ int CANHandler::canRead()
             /* Reads one frame at the time*/
             if (read(m_socketfd, &readFrame, sizeof(struct can_frame)))
             {
+                res = can_get_state(m_ifname, &m_state);
 
-                if (checkState() == "ERROR ACTIVE STATE")
+                if (m_state == CAN_STATE_ERROR_ACTIVE)
                 {
                     sleep(1);
                     /* In this case, it's probably SFF, RTR or EFF */
@@ -267,7 +244,7 @@ int CANHandler::canRead()
     }
 }
 
-void CANHandler::canFilterEnable(std::vector<std::pair<canid_t, canid_t>> &filterPair)
+void CANHandler::canFilterEnable(std::vector<std::pair<int, int>> &filterPair)
 {
     struct can_filter recFilter[filterPair.size()];
     for (size_t i = 0; i < filterPair.size(); ++i)
@@ -590,44 +567,60 @@ int initCAN(int bitrate)
     else
         return 1;
 }
-// TODO: Don't return std::string from function. Exception to error code
-std::string CANHandler::checkState()
+
+void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct can_frame &sendFrame, int *cycle)
 {
-    int state, res;
-    std::string bus_state = "";
-    /* Get the state of the CAN interface */
-    res = can_get_state(m_ifname, &state);
-
-    if (res != 0)
-        throw std::runtime_error("Error getting CAN state:" + std::string(strerror(errno)));
-
-    /* Output the state of the CAN interface */
-    switch (state)
+    if (serialRequest["method"] == "write")
     {
-    case CAN_STATE_ERROR_ACTIVE:
-        bus_state += "ERROR ACTIVE STATE";
-        break;
-    case CAN_STATE_ERROR_WARNING:
-        bus_state += "ERROR WARNING STATE";
-        break;
-    case CAN_STATE_ERROR_PASSIVE:
-        bus_state += "ERROR PASSIVE STATE";
-        break;
-    case CAN_STATE_BUS_OFF:
-        // TODO: restart
-        bus_state += "BUS OFF STATE";
-        break;
-    case CAN_STATE_STOPPED:
-        bus_state += "STOPPED STATE";
-        break;
-    case CAN_STATE_SLEEPING:
-        bus_state += "SLEEPING STATE";
-        break;
-    default:
-        bus_state += "UNKNOWN STATE";
-        break;
+        std::cout << "----------Write function detected----------" << std::endl;
+        if (serialRequest.contains("cycle_ms"))
+        {
+            cycleTimeRec.store(true);
+            *cycle = serialRequest["cycle_ms"];
+        }
+        else
+        {
+            cycleTimeRec.store(false);
+        }
+
+        sendFrame = socket.unpackWriteReq(serialRequest);
+
+        if (cycleTimeRec)
+        {
+            std::cout << "Cycle time in ms: " << std::dec << cycle << std::endl;
+            std::unique_lock<std::mutex> lock(m);
+            initCAN(serialRequest["bitrate"]);
+            CANHandler s;
+            socket = move(s);
+            cv.notify_one();
+        }
+        else
+        {
+            std::cout << "No cycle time added." << std::endl;
+            initCAN(serialRequest["bitrate"]);
+            CANHandler writeOp;
+            writeOp.canSend(sendFrame);
+        }
     }
-    return bus_state;
+    else if (serialRequest["method"] == "read")
+    {
+        {
+            cycleTimeRec.store(false);
+        }
+        std::cout << "----------Read function detected----------" << std::endl;
+        initCAN(serialRequest["bitrate"]);
+        CANHandler readOp;
+        if (serialRequest.contains("can_id") && serialRequest.contains("can_mask"))
+        {
+            readOp.unpackFilterReq(serialRequest);
+        }
+        readOp.errorFilter();
+        readOp.canRead();
+    }
+    else
+    {
+        std::cout << "----------Invalid request-----------" << std::endl;
+    }
 }
 
 void CANHandler::displayFrame(const struct can_frame &frame)

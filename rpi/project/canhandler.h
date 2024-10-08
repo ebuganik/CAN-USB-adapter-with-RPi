@@ -10,48 +10,51 @@
 #include <vector>
 #include <utility>
 #include "serial.h"
-#include "../ext_lib/json.hpp" 
+#include "../ext_lib/json.hpp"
 
 using namespace std;
 using json = nlohmann::json;
 
 /* Flag to track if write request with cycle_ms parameter is received */
-extern bool cycleTimeRec;
+extern std::atomic<bool> cycleTimeRec;
 
 /* CANHandler class to handle CAN bus communication */
 class CANHandler
 {
 private:
-    int m_socketfd;   /* fd to read and write */
-    const char* m_ifname = "can0";
+    int m_socketfd; /* fd to read and write */
+    int m_state;
+    const char *m_ifname = "can0";
     struct ifreq m_ifr;
     struct sockaddr_can m_addr;
 
 public:
     CANHandler();
     ~CANHandler();
-    CANHandler(const CANHandler&) = delete;
-    CANHandler& operator=(const CANHandler&) = delete;
-    CANHandler(CANHandler&& other);
-    CANHandler& operator=(CANHandler &&other) noexcept;
-    void canSendPeriod(const struct can_frame &frame, int* cycle); 
+    CANHandler(const CANHandler &) = delete;
+    CANHandler &operator=(const CANHandler &) = delete;
+    CANHandler(CANHandler &&other);
+    CANHandler &operator=(CANHandler &&other) noexcept;
+    void canSendPeriod(const struct can_frame &frame, int *cycle);
     void canSend(const struct can_frame &frame);
+    std::vector<int> parsePayload(const std::string &payload);
     struct can_frame unpackWriteReq(const json &request);
-    // void unpackFilterReq(const json &request); // TODO: define this function!
+    void unpackFilterReq(const json &request);
     int canRead();
-    void canFilterEnable(std::vector<std::pair<canid_t, canid_t>> &filterPair);
+    void canFilterEnable(std::vector<std::pair<int, int>> &filterPair);
     void canFilterDisable();
     void loopBack(int mode);
     void errorFilter();
     void displayFrame(const struct can_frame &frame);
+    // TODO: change return values of error desc functions
     std::string getCtrlErrorDesc(__u8 ctrlError);
     std::string getProtErrorTypeDesc(__u8 protError);   /* error in CAN protocol (type) / data[2] */
     std::string getProtErrorLocDesc(__u8 protError);    /* error in CAN protocol (location) / data[3] */
     std::string getTransceiverStatus(__u8 statusError); /* error status of CAN-transceiver / data[4] */
     void frameAnalyzer(const struct can_frame &frame);
-    std::string checkState();
+    void processRequest(json &serialRequest, CANHandler &socket, struct can_frame &sendFrame, int *cycle);
 };
 
- int initCAN(int bitrate);   
+int initCAN(int bitrate);
 
 #endif /* CANHANDLER_H_*/

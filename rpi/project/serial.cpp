@@ -15,16 +15,14 @@
 #define BUFFER_SIZE 200
 
 using namespace std;
-
 /* Constructor to initialize serial communication */
 
 Serial::Serial()
 {
     m_serialfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
-    // TODO: exception to error code
     if (m_serialfd < 0)
         throw std::runtime_error("Failed to open serial port. Check if it is used by another device. " + std::string(strerror(errno)));
-        
+
     /* Get the current options of the port and set baudrates to 115200 */
     tcgetattr(m_serialfd, &m_config);
     cfsetispeed(&m_config, B115200);
@@ -67,44 +65,33 @@ Serial::~Serial()
 }
 
 /* Pack received frames from CAN bus into JSON strings and send them via serial */
-// TODO: Minimize function
-void Serial::sendJson(const struct can_frame receivedFrame)
+void Serial::sendJson(const struct can_frame &receivedFrame)
 {
-    json jsonRequest;
-    std::stringstream cc;
-    cc << std::hex << std::setw(3) << std::showbase << receivedFrame.can_id;
-    jsonRequest["can_id"] = cc.str();
-    jsonRequest["dlc"] = receivedFrame.can_dlc;
-    std::vector<std::string> payload_hex;
-    for (int i = 0; i < receivedFrame.can_dlc; ++i)
+    json packedFrame;
+    char buffer[20];
+    sprintf(buffer, "0x%X", receivedFrame.can_id);
+    packedFrame["can_id"] = buffer;
+    packedFrame["dlc"] = receivedFrame.can_dlc;
+    std::ostringstream payloadStream;
+    payloadStream << "[";
+    for (int i = 0; i < receivedFrame.can_dlc; i++)
     {
-        std::stringstream byte_ss;
-        byte_ss << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(receivedFrame.data[i]);
-        payload_hex.push_back(byte_ss.str());
-    }
-
-    /* Joining data */
-    std::stringstream payload_ss;
-    payload_ss << "[";
-    for (size_t i = 0; i < payload_hex.size(); ++i)
-    {
-        if (i != 0)
+        payloadStream << "0x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(receivedFrame.data[i]);
+        if (i < receivedFrame.can_dlc - 1)
         {
-            payload_ss << ",";
+            payloadStream << ", ";
         }
-        payload_ss << payload_hex[i];
     }
-    payload_ss << "]";
-    jsonRequest["payload"] = payload_ss.str();
-    std::string reqString = jsonRequest.dump();
-    serialSend(reqString);
+    payloadStream << "]";
+    packedFrame["payload"] = payloadStream.str();
+    std::string jsonString = packedFrame.dump();
+    serialSend(jsonString);
 }
 
 void Serial::serialSend(const std::string statusMessage)
 {
     const char *pMessage = statusMessage.c_str();
     int nbytes = write(m_serialfd, pMessage, strlen(pMessage));
-    // TODO: exception to error code 
     if (nbytes < 0)
     {
         throw std::runtime_error("No bytes written to file. " + std::string(strerror(errno)));
