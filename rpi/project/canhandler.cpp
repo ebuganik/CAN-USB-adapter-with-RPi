@@ -57,6 +57,7 @@ CANHandler &CANHandler::operator=(CANHandler &&other) noexcept
 }
 CANHandler::~CANHandler()
 {
+    std::cout << "Calling destructor of CANHandler file desc" << std::endl;
     if (m_socketfd)
     {
         close(m_socketfd);
@@ -68,21 +69,22 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
     int res = can_get_state(m_ifname, &m_state);
     if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
-        inform.serialSend("Unable to send data, bus off! Restarting interface...\n");
+        inform.sendStatusMessage(StatusCode::NODE_STATUS, "Unable to send data, bus off! Restarting interface...");
         can_do_restart(m_ifname);
         return;
     }
-    while (1)
+    while (isRunning)
     {
         bool firstSend = true;
-
         {
             std::unique_lock<std::mutex> lock(m);
             cv.wait(lock, []
                     { return cycleTimeRec.load(); });
         }
+        if (!isRunning)
+            break;
 
-        while (1)
+        while (isRunning)
         {
             {
                 std::unique_lock<std::mutex> lock(m);
@@ -95,7 +97,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 
             if (write(m_socketfd, &frame, sizeof(frame)) != sizeof(struct can_frame))
             {
-                inform.serialSend("NACK: Sending CAN frame unsuccessful!\n");
+                inform.sendStatusMessage(StatusCode::OPERATION_ERROR, "Sending CAN frame unsuccessful!");
                 throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
                 return;
             }
@@ -103,7 +105,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
             {
                 if (firstSend)
                 {
-                    inform.serialSend("ACK: Sending CAN frame periodically.\n");
+                    inform.sendStatusMessage(StatusCode::OPERATION_SUCCESS, "Sending CAN frame periodically.");
                     firstSend = false;
                 }
             }
@@ -111,26 +113,27 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
         }
     }
 }
+
 void CANHandler::canSend(const struct can_frame &frame)
 {
     Serial inform;
     int res = can_get_state(m_ifname, &m_state);
     if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
-        inform.serialSend("Unable to send data, bus off! Restarting interface...\n");
+        inform.sendStatusMessage(StatusCode::NODE_STATUS, "Unable to send data, bus off! Restarting interface...");
         can_do_restart(m_ifname);
         return;
     }
 
     if (write(m_socketfd, &frame, sizeof(frame)) != sizeof(struct can_frame))
     {
-        inform.serialSend("NACK: Sending CAN frame unsuccessful!\n");
+        inform.sendStatusMessage(StatusCode::OPERATION_ERROR, "Sending CAN frame unsuccessful!");
         throw std::runtime_error("Sending CAN frame failed: " + std::string(strerror(errno)));
         return;
     }
     else
     {
-        inform.serialSend("ACK: Sending CAN frame successful!\n");
+        inform.sendStatusMessage(StatusCode::OPERATION_SUCCESS, "Sending CAN frame successful!");
         return;
     }
 }
@@ -193,13 +196,13 @@ int CANHandler::canRead()
     if (retVal == -1)
     {
         std::cout << "An error ocurred in timeout set up!" << std::endl;
-        inform.serialSend("Unable to set timeout, no bytes read from CAN bus!");
+        inform.sendStatusMessage(StatusCode::OPERATION_ERROR, "Unable to set timeout, no bytes read from CAN bus!");
         return -1;
     }
     else if (retVal == 0)
     {
         std::cout << "No data within 10 seconds." << std::endl;
-        inform.serialSend("CONNECTION TIMEOUT. No activity on the socket.");
+        inform.sendStatusMessage(StatusCode::TIMEOUT, "CONNECTION TIMEOUT. No activity on the socket.");
         return -1;
     }
     else
@@ -220,7 +223,7 @@ int CANHandler::canRead()
                     /* In this case, it's probably SFF, RTR or EFF */
                     frameAnalyzer(readFrame);
                     displayFrame(readFrame);
-                    inform.sendJson(readFrame);
+                    inform.sendReadFrame(readFrame);
                     break;
                 }
                 /* This part checks error frames */

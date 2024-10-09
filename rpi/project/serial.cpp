@@ -61,11 +61,12 @@ int Serial::getSerial() const
 
 Serial::~Serial()
 {
+    std::cout << "Calling destructor of serial socket_fd " << std::endl;
     close(m_serialfd);
 }
 
 /* Pack received frames from CAN bus into JSON strings and send them via serial */
-void Serial::sendJson(const struct can_frame &receivedFrame)
+void Serial::sendReadFrame(const struct can_frame &receivedFrame)
 {
     json packedFrame;
     char buffer[20];
@@ -88,6 +89,15 @@ void Serial::sendJson(const struct can_frame &receivedFrame)
     serialSend(jsonString);
 }
 
+void Serial::sendStatusMessage(const StatusCode &code, const std::string &message)
+{
+    json packedStatus;
+    packedStatus["status_code"] = code;
+    packedStatus["status_message"] = message;
+    std::string jsonString = packedStatus.dump();
+    serialSend(jsonString);
+}
+
 void Serial::serialSend(const std::string statusMessage)
 {
     const char *pMessage = statusMessage.c_str();
@@ -106,8 +116,9 @@ void Serial::serialReceive(json &serialRequest)
     int bufPos = 0;
     int bytesRead = 0;
     int jsonStarted = 0;
-    while (1)
+    while (isRunning)
     {
+        std::cout << "serialreceive " << std::endl;
         bytesRead = read(m_serialfd, &buf[bufPos], 1);
         if (bytesRead > 0)
         {

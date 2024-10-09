@@ -20,9 +20,14 @@ extern std::mutex m;
 extern std::condition_variable cv;
 /* Global variable to track if new request is received or not */
 extern std::atomic<bool> dataReady;
-/* Global variable to track if CTRL+C is pressed */
-extern std::mutex c;
 extern std::atomic<bool> isRunning;
+
+enum class StatusCode {
+    NODE_STATUS = 500, 
+    OPERATION_ERROR = 400,
+    OPERATION_SUCCESS = 200,
+    TIMEOUT = 408 
+};
 /* Termios class to handle serial communicaton */
 class Serial
 {
@@ -34,7 +39,8 @@ public:
     ~Serial();
     int getSerial() const;
     void serialSend(const std::string statusMessage);
-    void sendJson(const struct can_frame &receivedFrame);
+    void sendReadFrame(const struct can_frame &receivedFrame);
+    void sendStatusMessage(const StatusCode &code, const std::string &message);
     void serialReceive(json &serialRequest);
 };
 
