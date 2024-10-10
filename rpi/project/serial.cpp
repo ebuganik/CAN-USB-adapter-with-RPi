@@ -61,7 +61,7 @@ int Serial::getSerial() const
 
 Serial::~Serial()
 {
-    std::cout << "Calling destructor of serial socket_fd " << std::endl;
+    // std::cout << "Calling destructor of Serial file desc" << std::endl;
     close(m_serialfd);
 }
 
@@ -116,9 +116,13 @@ void Serial::serialReceive(json &serialRequest)
     int bufPos = 0;
     int bytesRead = 0;
     int jsonStarted = 0;
+
     while (isRunning)
     {
-        std::cout << "serialreceive " << std::endl;
+        if (!isRunning)
+            break;
+
+        // std::cout << "serialreceive " << std::endl;
         bytesRead = read(m_serialfd, &buf[bufPos], 1);
         if (bytesRead > 0)
         {
@@ -137,7 +141,6 @@ void Serial::serialReceive(json &serialRequest)
             {
                 buf[bufPos] = '\0';
 
-                // TODO: exception to error code
                 try
                 {
                     std::string reqString(buf);
@@ -159,6 +162,11 @@ void Serial::serialReceive(json &serialRequest)
                 /* Initialize integer array with zeros */
                 memset((void *)buf, '0', sizeof(buf));
             }
+        }
+        else
+        {
+            // Add a small sleep to prevent busy-waiting
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 }

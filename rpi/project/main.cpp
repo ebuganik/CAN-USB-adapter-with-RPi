@@ -10,19 +10,20 @@
 #include <sys/syslog.h>
 
 std::atomic<bool> isRunning(true);
-
 void sigintHandler(int signal)
 {
     std::cout << "\nSIGINT received. Initiating shutdown..." << std::endl;
     std::unique_lock<std::mutex> lock(m);
     isRunning = false;
-    std::cout << std::boolalpha << isRunning << std::endl;
+    cv.notify_all();
 }
 
 using namespace std;
 int main()
 {
     std::signal(SIGINT, sigintHandler);
+    wiringPiSetupGpio();
+    pinMode(17, OUTPUT);
     Serial serial;
     initCAN(200000);
     CANHandler socket;
@@ -34,10 +35,9 @@ int main()
     {
         serial.serialReceive(serialRequest);
         socket.processRequest(serialRequest, socket, sendFrame, &cycleTime);
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
-    std::cout << "Out of loop" << std::endl;
-    sleep(2);
+    sleep(1);
     canThread.join();
     std::cout << "Program safely terminated!" << std::endl;
     return 0;

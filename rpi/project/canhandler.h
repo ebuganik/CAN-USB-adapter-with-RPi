@@ -11,6 +11,7 @@
 #include <utility>
 #include "serial.h"
 #include "../ext_lib/json.hpp"
+#include "../ext_lib/WiringPi/wiringPi/wiringPi.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -46,13 +47,13 @@ public:
     void loopBack(int mode);
     void errorFilter();
     void displayFrame(const struct can_frame &frame);
-    // TODO: change return values of error desc functions
-    std::string getCtrlErrorDesc(__u8 ctrlError);
-    std::string getProtErrorTypeDesc(__u8 protError);   /* error in CAN protocol (type) / data[2] */
-    std::string getProtErrorLocDesc(__u8 protError);    /* error in CAN protocol (location) / data[3] */
-    std::string getTransceiverStatus(__u8 statusError); /* error status of CAN-transceiver / data[4] */
+    void getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMessage);
+    void getProtErrorTypeDesc(unsigned char protError, std::string &errorMessage);   /* error in CAN protocol (type)      / data[2] */
+    void getProtErrorLocDesc(unsigned char protError, std::string &errorMessage);    /* error in CAN protocol (location) / data[3] */
+    void getTransceiverStatus(unsigned char statusError, std::string &errorMessage); /* error status of CAN-transceiver / data[4] */
     void frameAnalyzer(const struct can_frame &frame);
     void processRequest(json &serialRequest, CANHandler &socket, struct can_frame &sendFrame, int *cycle);
+    void blinkLed(int led, int time);
 };
 
 int initCAN(int bitrate);

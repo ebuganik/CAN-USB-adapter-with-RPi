@@ -19,7 +19,7 @@ using namespace std::chrono;
 
 std::mutex m;
 std::condition_variable cv;
-std::atomic<bool> dataReady;
+std::atomic<bool> dataReady(false);
 
 std::atomic<bool> cycleTimeRec(false);
 CANHandler::CANHandler()
@@ -57,7 +57,7 @@ CANHandler &CANHandler::operator=(CANHandler &&other) noexcept
 }
 CANHandler::~CANHandler()
 {
-    std::cout << "Calling destructor of CANHandler file desc" << std::endl;
+    // std::cout << "Calling destructor of CANHandler file desc" << std::endl;
     if (m_socketfd)
     {
         close(m_socketfd);
@@ -79,7 +79,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
         {
             std::unique_lock<std::mutex> lock(m);
             cv.wait(lock, []
-                    { return cycleTimeRec.load(); });
+                    { return cycleTimeRec.load() || !isRunning.load(); });
         }
         if (!isRunning)
             break;
@@ -103,12 +103,15 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
             }
             else
             {
+                blinkLed(17, 1000);
                 if (firstSend)
                 {
                     inform.sendStatusMessage(StatusCode::OPERATION_SUCCESS, "Sending CAN frame periodically.");
                     firstSend = false;
                 }
             }
+            if (!isRunning)
+                break;
             std::this_thread::sleep_for(std::chrono::milliseconds(*cycle));
         }
     }
@@ -133,6 +136,7 @@ void CANHandler::canSend(const struct can_frame &frame)
     }
     else
     {
+        blinkLed(17, 1000);
         inform.sendStatusMessage(StatusCode::OPERATION_SUCCESS, "Sending CAN frame successful!");
         return;
     }
@@ -215,6 +219,7 @@ int CANHandler::canRead()
             /* Reads one frame at the time*/
             if (read(m_socketfd, &readFrame, sizeof(struct can_frame)))
             {
+                blinkLed(17, 1000);
                 res = can_get_state(m_ifname, &m_state);
 
                 if (m_state == CAN_STATE_ERROR_ACTIVE)
@@ -291,195 +296,190 @@ void CANHandler::loopBack(int mode)
     }
 }
 
-std::string CANHandler::getCtrlErrorDesc(__u8 ctrlError)
+void CANHandler::getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMessage)
 {
     /* Subclasses of control error frames */
-
-    std::string errorDesc = "";
     Serial inform;
     switch (ctrlError)
     {
     case CAN_ERR_CRTL_UNSPEC:
-        errorDesc += "unspecified";
+        errorMessage += "unspecified";
         break;
     case CAN_ERR_CRTL_RX_OVERFLOW:
-        errorDesc += "RX buf overflow";
+        errorMessage += "RX buf overflow";
         break;
     case CAN_ERR_CRTL_TX_OVERFLOW:
-        errorDesc += "TX buf overflow";
+        errorMessage += "TX buf overflow";
         break;
     case CAN_ERR_CRTL_RX_WARNING:
-        errorDesc += "reached warning level for RX errors";
+        errorMessage += "reached warning level for RX errors";
         break;
     case CAN_ERR_CRTL_TX_WARNING:
-        errorDesc += "reached warning level for TX errors";
+        errorMessage += "reached warning level for TX errors";
         break;
     case CAN_ERR_CRTL_RX_PASSIVE:
-        errorDesc += "reached error passive status RX";
-        inform.serialSend("ERROR PASSIVE RX STATE\n");
+        errorMessage += "reached error passive status RX";
+        inform.sendStatusMessage(StatusCode::NODE_STATUS, "ERROR PASSIVE RX STATE\n");
         break;
     case CAN_ERR_CRTL_TX_PASSIVE:
-        errorDesc += "reached error passive status TX";
-        inform.serialSend("ERROR PASSIVE TX STATE\n");
+        errorMessage += "reached error passive status TX";
+        inform.sendStatusMessage(StatusCode::NODE_STATUS,"ERROR PASSIVE TX STATE\n");
         break;
     case CAN_ERR_CRTL_ACTIVE:
-        errorDesc += "recovered to error active state";
-        inform.serialSend("ERROR ACTIVE STATE\n");
+        errorMessage += "recovered to error active state";
+        inform.sendStatusMessage(StatusCode::NODE_STATUS,"ERROR ACTIVE STATE\n");
 
         break;
     default:
-        errorDesc += "unknown error state";
+        errorMessage += "unknown error state";
     }
-    return errorDesc;
+    return;
 }
 
-std::string CANHandler::getProtErrorTypeDesc(__u8 protError)
+void CANHandler::getProtErrorTypeDesc(unsigned char protError, std::string &errorMessage)
 {
-    std::string errorDesc = "";
     switch (protError)
     {
     case CAN_ERR_PROT_UNSPEC:
-        errorDesc += "unspecified";
+        errorMessage += "unspecified";
         break;
     case CAN_ERR_PROT_BIT:
-        errorDesc += "single bit error";
+        errorMessage += "single bit error";
         break;
     case CAN_ERR_PROT_FORM:
-        errorDesc += "frame format error";
+        errorMessage += "frame format error";
         break;
     case CAN_ERR_PROT_STUFF:
-        errorDesc += "bit stuffing error";
+        errorMessage += "bit stuffing error";
         break;
     case CAN_ERR_PROT_BIT0:
-        errorDesc += "unable to send dominant bit";
+        errorMessage += "unable to send dominant bit";
         break;
     case CAN_ERR_PROT_BIT1:
-        errorDesc += "unable to send recessive bit";
+        errorMessage += "unable to send recessive bit";
         break;
     case CAN_ERR_PROT_OVERLOAD:
-        errorDesc += "bus overload";
+        errorMessage += "bus overload";
         break;
     case CAN_ERR_PROT_ACTIVE:
-        errorDesc += "active error announcement";
+        errorMessage += "active error announcement";
     case CAN_ERR_PROT_TX:
-        errorDesc += "error occured on transmission";
+        errorMessage += "error occured on transmission";
         break;
     default:
-        errorDesc += "unknown error state";
+        errorMessage += "unknown error state";
     }
-    return errorDesc;
+    return;
 }
 
-std::string CANHandler::getProtErrorLocDesc(__u8 protError)
+void CANHandler::getProtErrorLocDesc(unsigned char protError, std::string &errorMessage)
 {
-    std::string errorDesc = "";
     switch (protError)
     {
     case CAN_ERR_PROT_LOC_UNSPEC:
-        errorDesc += "unspecified";
+        errorMessage += "unspecified";
         break;
     case CAN_ERR_PROT_LOC_SOF:
-        errorDesc += "start of frame";
+        errorMessage += "start of frame";
         break;
     case CAN_ERR_PROT_LOC_ID28_21:
-        errorDesc += "ID bits 28-21 (SFF 10-3)";
+        errorMessage += "ID bits 28-21 (SFF 10-3)";
         break;
     case CAN_ERR_PROT_LOC_ID20_18:
-        errorDesc += "ID bits 20 - 18 (SFF: 2 - 0 )";
+        errorMessage += "ID bits 20 - 18 (SFF: 2 - 0 )";
         break;
     case CAN_ERR_PROT_LOC_SRTR:
-        errorDesc += "substitute RTR (SFF: RTR)";
+        errorMessage += "substitute RTR (SFF: RTR)";
         break;
     case CAN_ERR_PROT_LOC_IDE:
-        errorDesc += "identifier extension";
+        errorMessage += "identifier extension";
         break;
     case CAN_ERR_PROT_LOC_ID17_13:
-        errorDesc += "ID bits 17-13";
+        errorMessage += "ID bits 17-13";
         break;
     case CAN_ERR_PROT_LOC_ID12_05:
-        errorDesc += "ID bits 12-5";
+        errorMessage += "ID bits 12-5";
         break;
     case CAN_ERR_PROT_LOC_ID04_00:
-        errorDesc += "ID bits 4-0";
+        errorMessage += "ID bits 4-0";
         break;
     case CAN_ERR_PROT_LOC_RTR:
-        errorDesc += "RTR";
+        errorMessage += "RTR";
         break;
     case CAN_ERR_PROT_LOC_RES1:
-        errorDesc += "reserved bit 1";
+        errorMessage += "reserved bit 1";
         break;
     case CAN_ERR_PROT_LOC_RES0:
-        errorDesc += "reserved bit 0";
+        errorMessage += "reserved bit 0";
         break;
     case CAN_ERR_PROT_LOC_DLC:
-        errorDesc += "data length code";
+        errorMessage += "data length code";
         break;
     case CAN_ERR_PROT_LOC_DATA:
-        errorDesc += "data section";
+        errorMessage += "data section";
         break;
     case CAN_ERR_PROT_LOC_CRC_SEQ:
-        errorDesc += "CRC sequence";
+        errorMessage += "CRC sequence";
         break;
     case CAN_ERR_PROT_LOC_CRC_DEL:
-        errorDesc += "CRC delimiter";
+        errorMessage += "CRC delimiter";
         break;
     case CAN_ERR_PROT_LOC_ACK:
-        errorDesc += "ACK slot";
+        errorMessage += "ACK slot";
         break;
     case CAN_ERR_PROT_LOC_ACK_DEL:
-        errorDesc += "ACK delimiter";
+        errorMessage += "ACK delimiter";
         break;
     case CAN_ERR_PROT_LOC_EOF:
-        errorDesc += "end of frame";
+        errorMessage += "end of frame";
         break;
     case CAN_ERR_PROT_LOC_INTERM:
-        errorDesc += "intermission";
+        errorMessage += "intermission";
         break;
     default:
-        errorDesc += "unknown error state";
+        errorMessage += "unknown error state";
     }
-    return errorDesc;
+    return;
 }
 
-std::string CANHandler::getTransceiverStatus(__u8 statusError)
+void CANHandler::getTransceiverStatus(unsigned char statusError, std::string &errorMessage)
 {
-    std::string errorDesc = "";
     switch (statusError)
     {
     case CAN_ERR_TRX_UNSPEC:
-        errorDesc += "unspecified";
+        errorMessage += "unspecified";
         break;
     case CAN_ERR_TRX_CANH_NO_WIRE:
-        errorDesc += "CANH no wire";
+        errorMessage += "CANH no wire";
         break;
     case CAN_ERR_TRX_CANH_SHORT_TO_BAT:
-        errorDesc += "CANH short to BAT";
+        errorMessage += "CANH short to BAT";
         break;
     case CAN_ERR_TRX_CANH_SHORT_TO_VCC:
-        errorDesc += "CANH short to VCC";
+        errorMessage += "CANH short to VCC";
         break;
     case CAN_ERR_TRX_CANH_SHORT_TO_GND:
-        errorDesc += "CANH short to GND";
+        errorMessage += "CANH short to GND";
         break;
     case CAN_ERR_TRX_CANL_NO_WIRE:
-        errorDesc += "CANL no wire";
+        errorMessage += "CANL no wire";
         break;
     case CAN_ERR_TRX_CANL_SHORT_TO_BAT:
-        errorDesc += "CANL short to BAT";
+        errorMessage += "CANL short to BAT";
         break;
     case CAN_ERR_TRX_CANL_SHORT_TO_VCC:
-        errorDesc += "CANL short to VCC";
+        errorMessage += "CANL short to VCC";
         break;
     case CAN_ERR_TRX_CANL_SHORT_TO_GND:
-        errorDesc += "CANL short to GND";
+        errorMessage += "CANL short to GND";
         break;
     case CAN_ERR_TRX_CANL_SHORT_TO_CANH:
-        errorDesc += "CANL short to CANH";
+        errorMessage += "CANL short to CANH";
         break;
     default:
-        errorDesc += "unknown error state";
+        errorMessage += "unknown error state";
     }
-    return errorDesc;
+    return;
 }
 
 void CANHandler::frameAnalyzer(const struct can_frame &frame)
@@ -508,33 +508,33 @@ void CANHandler::frameAnalyzer(const struct can_frame &frame)
         else if (frame.can_id & CAN_ERR_CRTL)
         {
             errorMsg += "Controller problems - ";
-            errorMsg += getCtrlErrorDesc(frame.data[1]);
-            /* bus off check */
+            getCtrlErrorDesc(frame.data[1], errorMsg);
+            /* Bus off check */
             if (frame.can_id & CAN_ERR_BUSOFF)
             {
                 errorMsg += "- BUS OFF";
-                inform.serialSend("BUS OFF STATE");
+                inform.sendStatusMessage(StatusCode::NODE_STATUS, "BUS OFF STATE");
                 can_do_restart(m_ifname);
             }
         }
         else if (frame.can_id & CAN_ERR_PROT)
         {
             errorMsg += "Protocol violations - ";
-            errorMsg += getProtErrorTypeDesc(frame.data[2]);
-            errorMsg += getProtErrorLocDesc(frame.data[3]);
+            getProtErrorTypeDesc(frame.data[2], errorMsg);
+            getProtErrorLocDesc(frame.data[3], errorMsg);
         }
 
         else if (frame.can_id & CAN_ERR_TRX)
         {
             errorMsg += "Transciever status - ";
-            errorMsg += getTransceiverStatus(frame.data[4]);
+            getTransceiverStatus(frame.data[4], errorMsg);
         }
         else if (frame.can_id & CAN_ERR_ACK)
             errorMsg += "Received no ACK on transmission";
         else if (frame.can_id & CAN_ERR_BUSOFF)
         {
             std::cout << "BUS OFF ... Restarting can0 interface" << std::endl;
-            inform.serialSend("BUS OFF STATE");
+            inform.sendStatusMessage(StatusCode::NODE_STATUS, "BUS OFF STATE");
             can_do_restart(m_ifname);
         }
         else if (frame.can_id & CAN_ERR_BUSERROR)
@@ -573,6 +573,7 @@ int initCAN(int bitrate)
 
 void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct can_frame &sendFrame, int *cycle)
 {
+
     if (serialRequest["method"] == "write")
     {
         std::cout << "----------Write function detected----------" << std::endl;
@@ -610,6 +611,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
         {
             cycleTimeRec.store(false);
         }
+
         std::cout << "----------Read function detected----------" << std::endl;
         initCAN(serialRequest["bitrate"]);
         CANHandler readOp;
@@ -639,4 +641,12 @@ void CANHandler::displayFrame(const struct can_frame &frame)
         std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
     }
     std::cout << std::endl;
+}
+ void CANHandler::blinkLed(int led, int time)
+{
+    digitalWrite(led, HIGH);
+    delay(time);
+    digitalWrite(led, LOW);
+    delay(time);
+    
 }

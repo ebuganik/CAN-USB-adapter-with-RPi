@@ -1,6 +1,6 @@
 TARGET = main
 CXX = g++
-LIBS = -lsocketcan
+LIBS = -lsocketcan -L$../ext_lib/WiringPi/wiringPi -lwiringPi
 CXXFLAGS = -Wall -g 
 THREAD_FLAGS = -pthread
 SRCS = main.cpp canhandler.cpp serial.cpp
@@ -11,14 +11,13 @@ SUDO_SET_CAPS = sudo setcap cap_net_raw,cap_net_admin+ep ${TARGET}
 
 all:$(TARGET) run
 
-
 # Rule to link object files into the target executable
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) -c $< -o $@ 
 
 # Default rule to build and run the executable
 $(TARGET):$(OBJS)
-	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) -o $(TARGET) $(OBJS) $(LIBS)
+	$(CXX) $(CXXFLAGS) $(THREAD_FLAGS) -o $(TARGET) $(OBJS) $(LIBS) 
 
 setcaps:
 	$(SUDO_SET_CAPS)
