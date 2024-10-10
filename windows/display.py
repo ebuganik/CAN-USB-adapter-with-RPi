@@ -17,15 +17,18 @@ def print_input(method,json_string):
         else: cycle = json_list.get("cycle_ms")
         
         print("=======================================================================================================================================")
-        print(f"SENT DATA: {method} request")
-        print(f"interface: {'can0'} bitrate: {bitrate} can_id: {can_id} dlc: {dlc} payload: {payload_str} cycle_ms: {cycle} count: {term.write_dict[json_string]}") 
+        print(f"method {method}")
+        print(f"params:")
+        print(f"\tinterface: {'can0'} \n\tbitrate: {bitrate} \n\tcan_id: {can_id} \n\tdlc: {dlc} \n\tpayload: {payload_str} \n\tcycle_ms: {cycle} \n\tcount: {term.write_dict[json_string]}") 
     else:
         json_list = json.loads(json_string)
         bitrate = json_list.get("bitrate")
         if json_list.get("can_id") == None:
             print("=======================================================================================================================================")
-            print(f"SENT DATA: {method} request")
-            print(f"interface: {'can0'} bitrate: {bitrate}") 
+            print(f"method: {method}")
+            print(f"params:")
+            # Maybe to add a 'filtering' field here, because it would be easier and more straightforward in C++ to check if it is requested or not
+            print(f"\tinterface: {'can0'} \n\tbitrate: {bitrate}") 
         else:
             can_id = json_list.get("can_id")
             can_mask = json_list.get("can_mask")
@@ -36,14 +39,15 @@ def print_input(method,json_string):
             can_id_str = " ".join(f"0x{byte:x}" for byte in can_id_bytes)
             can_mask_str = " ".join(f"0x{byte:x}" for byte in can_mask_bytes)
             print("=======================================================================================================================================")
-            print(f"SENT DATA: {method} request")
-            print(f"interface: {'can0'} bitrate: {bitrate} can_id: {can_id_str} can_mask: {can_mask_str}") 
+            print(f"method: {method}")
+            print(f"params:")
+            print(f"\tinterface: {'can0'} \n\tbitrate: {bitrate} \n\tcan_id: {can_id_str} \n\tcan_mask: {can_mask_str}") 
             
 
 
 def print_output(json_string):
     # Read data from CAN bus is packed into JSON string
-    if "{" in json_string:
+    if "can_id" in json_string:
         # Convert JSON into dictionary
         json_list = json.loads(json_string)
         can_id = json_list.get("can_id")
@@ -53,14 +57,15 @@ def print_output(json_string):
         payload_strip = payload.strip("[]")
         payload_bytes = [int(byte, 16) for byte in payload_strip.split(",")]
         payload_str = " ".join(f"0x{byte:x}" for byte in payload_bytes)
-        print("=======================================================================================================================================")
-        print("RECEIVED DATA:")
-        print(f"interface: {'can0'} can_id: {can_id} dlc: {dlc} payload: {payload_str} cycle_ms: {term.check_r_count(formatted_dict_id):.2f} count: {term.read_dict[formatted_dict_id]}")
+        print("response:")
+        print(f"\tinterface: {'can0'} \n\tcan_id: {can_id} \n\tdlc: {dlc} \n\tpayload: {payload_str} \n\tcycle_ms: {term.check_r_count(formatted_dict_id):.2f} \n\tcount: {term.read_dict[formatted_dict_id]}")
         print("=======================================================================================================================================")
 
     else:
         # Information about success or state of a CAN node is received as a normal string
-        print("=======================================================================================================================================")
-        print("RECEIVED DATA:")
-        print(json_string)
+        print("response:")
+        json_list = json.loads(json_string)
+        code = json_list.get("status_code")
+        message = json_list.get("status_message")
+        print(f"\tstatus_code: {code} \n\tstatus_message: {message}")
         print("=======================================================================================================================================")

@@ -29,6 +29,40 @@ PCAN_BITRATES = {
     1000000: "1 Mbps",
 }
 
+# Mapping supported baudrates for serial communication
+SERIAL_BAUDRATE = {
+    'B50': 50,
+    'B75': 75,
+    'B110': 110,
+    'B134': 134,
+    'B150': 150,
+    'B200': 200,
+    'B300': 300,
+    'B600': 600,
+    'B1200': 1200,
+    'B1800': 1800,
+    'B2400': 2400,
+    'B4800': 4800,
+    'B9600': 9600,
+    'B19200': 19200,
+    'B38400': 38400,
+    'B57600': 57600,
+    'B115200': 115200,
+    'B230400': 230400,
+    'B460800': 460800,
+    'B500000': 500000,
+    'B576000': 576000,
+    'B921600': 921600,
+    'B1000000': 1000000,
+    'B1152000': 1152000,
+    'B1500000': 1500000,
+    'B2000000': 2000000,
+    'B2500000': 2500000,
+    'B3000000': 3000000,
+    'B3500000': 3500000,
+    'B4000000': 4000000
+}
+
 # Function to verify if a write or read request has already been sent before (is stored in write_dict)
 def method_check(method):
     for key in reversed(write_dict):
@@ -95,14 +129,14 @@ def read_input():
                     repeat = input("Repeat last write request? (Y/N): ").strip().upper()
                     if repeat == "Y":
                         res_w = repeat_request(method)
-                        json_send = f'R"({res_w})"'
+                        json_send = f'R"({res_w})"' 
                         json_send += "\n"
                         return json_send
             # Print PCAN-USB supported bitrates to choose
-            pcan_bitrates_str = ", ".join(
+            pcan_bitrates_str = "\n ".join(
                 [f"{rate} bps ({PCAN_BITRATES[rate]})" for rate in PCAN_BITRATES]
             )
-            print(f"Supported bitrates: {pcan_bitrates_str}")
+            print(f"Supported bitrates:\n {pcan_bitrates_str}")
 
             while True:
                 try:
@@ -194,10 +228,10 @@ def read_input():
                         return json_send
 
             # Print PCAN-USB supported bitrates to choose
-            pcan_bitrates_str = ", ".join(
+            pcan_bitrates_str = "\n ".join(
                 [f"{rate} bps ({PCAN_BITRATES[rate]})" for rate in PCAN_BITRATES]
             )
-            print(f"Supported bitrates: {pcan_bitrates_str}")
+            print(f"Supported bitrates:\n {pcan_bitrates_str}")
 
             while True:
                 try:
