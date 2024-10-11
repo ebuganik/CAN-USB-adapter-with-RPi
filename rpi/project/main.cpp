@@ -10,6 +10,7 @@
 #include <sys/syslog.h>
 
 std::atomic<bool> isRunning(true);
+const char *interfaceName;
 void sigintHandler(int signal)
 {
     std::cout << "\nSIGINT received. Initiating shutdown..." << std::endl;
@@ -19,14 +20,23 @@ void sigintHandler(int signal)
 }
 
 using namespace std;
-int main()
+int main(int argc, char *argv[])
 {
+    syslog(LOG_INFO, "Starting C++ Application on Raspberry Pi");
     std::signal(SIGINT, sigintHandler);
     wiringPiSetupGpio();
     pinMode(17, OUTPUT);
     Serial serial;
     initCAN(200000);
-    CANHandler socket;
+    if (argc > 1)
+    {
+        interfaceName = argv[1];
+        std::cout << interfaceName << std::endl;
+    }
+    else
+        interfaceName = DEFAULT_INTERFACE_NAME;
+    std::cout << interfaceName << std::endl;
+    CANHandler socket(interfaceName);
     struct can_frame sendFrame = {0};
     int cycleTime = 0;
     json serialRequest;
@@ -40,5 +50,6 @@ int main()
     sleep(1);
     canThread.join();
     std::cout << "Program safely terminated!" << std::endl;
+    syslog(LOG_INFO, "Exiting program");
     return 0;
 }

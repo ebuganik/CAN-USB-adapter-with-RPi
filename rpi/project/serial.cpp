@@ -112,6 +112,7 @@ void Serial::serialSend(const std::string statusMessage)
 
 void Serial::serialReceive(json &serialRequest)
 {
+    syslog(LOG_DEBUG, "started serialReceive function");
     char buf[BUFFER_SIZE];
     int bufPos = 0;
     int bytesRead = 0;
@@ -122,7 +123,7 @@ void Serial::serialReceive(json &serialRequest)
         if (!isRunning)
             break;
 
-        // std::cout << "serialreceive " << std::endl;
+        syslog(LOG_DEBUG, "Reading from serial port ...");
         bytesRead = read(m_serialfd, &buf[bufPos], 1);
         if (bytesRead > 0)
         {
@@ -149,12 +150,13 @@ void Serial::serialReceive(json &serialRequest)
                         std::unique_lock<std::mutex> lock(m);
                         /* Set global variable */
                         dataReady = true;
+                        syslog(LOG_DEBUG, "Parsed received serial data.");
                     }
                     break;
                 }
                 catch (json::parse_error &e)
                 {
-                    std::cout << "Parse error: " << e.what() << std::endl;
+                    syslog(LOG_ERR, "Unable to parse serial data!");
                 }
 
                 jsonStarted = 0;

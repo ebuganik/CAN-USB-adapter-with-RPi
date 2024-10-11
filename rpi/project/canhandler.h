@@ -13,11 +13,14 @@
 #include "../ext_lib/json.hpp"
 #include "../ext_lib/WiringPi/wiringPi/wiringPi.h"
 
-using namespace std;
-using json = nlohmann::json;
-
+/* Default can interface name, if no command line arguments were given */
+#define DEFAULT_INTERFACE_NAME "can0"
+extern const char* interfaceName;
 /* Flag to track if write request with cycle_ms parameter is received */
 extern std::atomic<bool> cycleTimeRec;
+
+using namespace std;
+using json = nlohmann::json;
 
 /* CANHandler class to handle CAN bus communication */
 class CANHandler
@@ -25,12 +28,12 @@ class CANHandler
 private:
     int m_socketfd; /* fd to read and write */
     int m_state;
-    const char *m_ifname = "can0";
+    const char *m_ifname;
     struct ifreq m_ifr;
     struct sockaddr_can m_addr;
 
 public:
-    CANHandler();
+    CANHandler(const char *ifname);
     ~CANHandler();
     CANHandler(const CANHandler &) = delete;
     CANHandler &operator=(const CANHandler &) = delete;

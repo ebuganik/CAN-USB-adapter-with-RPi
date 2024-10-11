@@ -22,9 +22,10 @@ std::condition_variable cv;
 std::atomic<bool> dataReady(false);
 
 std::atomic<bool> cycleTimeRec(false);
-CANHandler::CANHandler()
+CANHandler::CANHandler(const char* ifname)
 {
 
+    m_ifname = ifname;
     m_socketfd = socket(PF_CAN, SOCK_RAW, CAN_RAW);
     if (m_socketfd < 0)
         throw std::runtime_error("Error in creating socket: " + std::string(strerror(errno)));
@@ -57,12 +58,12 @@ CANHandler &CANHandler::operator=(CANHandler &&other) noexcept
 }
 CANHandler::~CANHandler()
 {
-    // std::cout << "Calling destructor of CANHandler file desc" << std::endl;
     if (m_socketfd)
     {
         close(m_socketfd);
     }
 }
+
 void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 {
     Serial inform;
@@ -594,7 +595,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
             std::cout << "Cycle time in ms: " << std::dec << cycle << std::endl;
             std::unique_lock<std::mutex> lock(m);
             initCAN(serialRequest["bitrate"]);
-            CANHandler s;
+            CANHandler s("can0");
             socket = move(s);
             cv.notify_one();
         }
@@ -602,7 +603,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
         {
             std::cout << "No cycle time added." << std::endl;
             initCAN(serialRequest["bitrate"]);
-            CANHandler writeOp;
+            CANHandler writeOp(interfaceName);
             writeOp.canSend(sendFrame);
         }
     }
@@ -614,7 +615,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
 
         std::cout << "----------Read function detected----------" << std::endl;
         initCAN(serialRequest["bitrate"]);
-        CANHandler readOp;
+        CANHandler readOp(interfaceName);
         if (serialRequest.contains("can_id") && serialRequest.contains("can_mask"))
         {
             readOp.unpackFilterReq(serialRequest);

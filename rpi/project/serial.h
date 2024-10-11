@@ -11,6 +11,7 @@
 #include <future>
 #include <atomic>
 #include <csignal>
+#include <sys/syslog.h>
 
 using namespace std;
 using json = nlohmann::json;
