@@ -21,7 +21,7 @@ class SerialPi:
             if self.ser.is_open:
                 print(f"Serial port {self.ser.portstr} is opened.")
             else:
-                print(f"Serial port {self.ser.portstr} isn't opened.")
+                print(f"Serial port {self.ser.portstr} isn t opened.")
         except serial.SerialException as e:
             print(f"Error opening serial port {self.port}: {e}")
 
@@ -32,7 +32,7 @@ class SerialPi:
             except serial.SerialException as e:
                 print(f"Error writing to serial port: {e}")
         else:
-            print("Serial port isn't opened")
+            print("Serial port isn t opened")
 
     def read_serial(self):
         if self.ser and self.ser.is_open:
@@ -44,7 +44,7 @@ class SerialPi:
             except serial.SerialException as e:
                 print(f"Error reading from serial port: {e}")
         else:
-            print("Serial port isn't opened.")
+            print("Serial port isn t opened.")
 
     def close_port(self):
         if self.ser and self.ser.is_open:

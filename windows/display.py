@@ -17,7 +17,7 @@ def print_input(method,json_string):
         else: cycle = json_list.get("cycle_ms")
         
         print("=======================================================================================================================================")
-        print(f"method {method}")
+        print(f"method: {method}")
         print(f"params:")
         print(f"\tinterface: {'can0'} \n\tbitrate: {bitrate} \n\tcan_id: {can_id} \n\tdlc: {dlc} \n\tpayload: {payload_str} \n\tcycle_ms: {cycle} \n\tcount: {term.write_dict[json_string]}") 
     else:
@@ -27,7 +27,7 @@ def print_input(method,json_string):
             print("=======================================================================================================================================")
             print(f"method: {method}")
             print(f"params:")
-            # Maybe to add a 'filtering' field here, because it would be easier and more straightforward in C++ to check if it is requested or not
+            # Maybe to add a  filtering  field here, because it would be easier and more straightforward in C++ to check if it is requested or not
             print(f"\tinterface: {'can0'} \n\tbitrate: {bitrate}") 
         else:
             can_id = json_list.get("can_id")
