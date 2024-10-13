@@ -1,0 +1,66 @@
+**********************************************************************************************************************
+                                                   USER MANUAL
+**********************************************************************************************************************
+
+1. WRITE
+This option allows you to enter parameters of a CAN frame that will be sent once or periodically to the CAN bus.
+
+# Command Format:
+write 
+<can_id>       The ID of the CAN frame (in hexadecimal format).
+<dlc>          Data Length Code (number of bytes in the payload, max 8).
+<payload>      The data bytes to send (space-separated values in hexadecimal format).
+Add cycle_time? <y/n>   Specify if the frame should be sent periodically (`y` for yes, `n` for no).
+<cycle_time in ms>      If `y` is chosen for `cycle_time`, provide the interval in milliseconds for periodic sending.
+
+# Usage:
+## To send a frame once:
+    command : write
+    bitrate : 250000
+    can_id  : 123 
+    dlc     :  8 
+    payload : 11 22 33 44 55 66 77 88 
+    enter cycle_time in ms : n
+
+##To send a frame periodically:
+    command : write
+    bitrate : 250000
+    can_id  : 123 
+    dlc     :  8 
+    payload : 11 22 33 44 55 66 77 88 
+    enter cycle_time in ms : y
+    cycle_time : 1000
+
+# NOTE: By entering the bitrate, the available speeds for the PEAKCAN device for CAN-SJA 1000 mode will be displayed. If there are previous write requests, 
+        you can repeat the last `write` request by simply typing `write` without parameters and then 'y' answer for approved repeat.
+
+2. READ
+This option allows you to read a CAN frame once from CAN bus, with or without filtering.
+
+# Command Format:
+read 
+--bitrate <bit_rate>        Specify the bitrate (e.g., 250000).
+--enable_filter <y/n>       Specify if filtering is enabled (`y` for yes, `n` for no).
+--filter_id <can_id1> <can_id2>     The CAN IDs to filter (in hexadecimal format).
+--mask <mask1> <mask2>              The masks for the filter (in hexadecimal format).
+
+# Usage:
+## To read a frame without filtering:
+    command : read
+    bitrate : 250000
+
+## To read a frame with filtering:
+    command : read
+    bitrate : 250000
+    enable_filter : y
+    filter_id : 123 200
+    mask : 700 70
+
+# NOTE: By entering the bitrate, the available speeds for the PEAKCAN device for CAN-SJA 1000 mode will be displayed. If there are previous read requests, 
+        you can repeat the last `read` request by simply typing `read` without parameters and then 'y' for repeat.
+
+3. HELP
+Use the command `--help` to display this help information.
+
+4. APPLICATION INTERRUPT
+Press `Ctrl+C` to interrupt the application.

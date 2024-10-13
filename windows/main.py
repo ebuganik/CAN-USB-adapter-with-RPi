@@ -18,7 +18,7 @@ if __name__ == "__main__":
     if args.baudrate not in term.SERIAL_BAUDRATE:
         print(f"Invalid baudrate: {args.baudrate}. Using default baudrate: 115200.")
         args.baudrate = 115200
-    ser = sp.SerialPi(port=args.port, baudrate=args.baudrate)
+    ser = sp.serialpi(port=args.port, baudrate=args.baudrate)
     ser.open_port()
     try:
         while True:
