@@ -1,11 +1,30 @@
 # Design and Implementation of a CAN-USB adapter using a Raspberry Pi device
 
 ## About the project
-This repository is part of a practical project for an undergraduate thesis at the Faculty of Electrical Engineering in Banja Luka. The project aims to develop a device similar to PEAKCAN using a Raspberry Pi. The Raspberry Pi will receive and process CAN messages through a C++ application, then transmit them via an interface like USB to a PC, where they will be displayed using a Python application. Additionally, requests from the PC will be sent to read from the CAN bus and to write data onto the bus. 
+This repository is a part of a practical project for an undergraduate thesis at the Faculty of Electrical Engineering in Banja Luka. The project aims to develop a device similar to PEAKCAN using a Raspberry Pi. The Raspberry Pi will receive and process CAN messages through a C++ application and then transmit them via an interface such as USB to a PC, where they will be displayed using a Python application. Also, requests from the PC will be sent to read from the CAN bus and to write data onto the bus. The following block diagram illustrates the main idea of the project.
 **NOTE**: The repository is still under development.
-> Add a picture of the main idea behind the project
+<p align="center">
+<img src="https://github.com/user-attachments/assets/3c8a1fa4-6ee8-49b5-8495-ba2b1135ac24"width = "750", height = "400">
+
 ## Raspberry Pi Setup and Hardware Interface Configuration
-> Include the configuration of the Raspberry Pi device, covering both serial communication and connection to the hardware interface. Also, provide details on the connections used with the Raspberry Pi and the additional circuit designed for CAN communication.
+To use the CAN interface on the Raspberry Pi platform it is necessary to provide an appropriate hardware module that is connected to one of the interfaces offered by this platform. This project assignment involves designing the module using MCP2515 CAN controller and the MCP2551 CAN transceiver, which enable the connection of a microcontroller to the CAN network via the interface.
+
+The MCP2515 CAN controller is already supported in the *Linux* operating system through a driver module. To ensure this module loads at system startup on the Raspberry Pi platform, it is necessary to modify the system's hardware configuration by specifying the appropriate parameters in the `/boot/config.txt` file. Therefore, this file should be edited using following command:
+```
+sudo nano /boot/config.txt
+```
+to add following lines:
+```
+dtparam=spi=on
+dtoverlay=mcp2515-can0,oscillator=16000000,spimaxfrequency=1000000,interrupt=25
+```
+To enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file.
+
+It's also useful to have serial console configured in case of testing serial communication (to check if serial cable works fine, for example). To do that, in this case it was necessary to have following line in `/boot/cmdline.txt`, previously opened with `sudo` privileges:
+```
+dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait 
+```
+> Add instructions how to connect Raspberry Pi with hardware module and MCP2551 to MCP2515
 ## Setup Instructions and Launching the Applications
 > Getting started with G++
 ### Raspberry Pi (C++ Application)
