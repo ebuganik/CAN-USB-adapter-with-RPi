@@ -11,6 +11,7 @@
 #include <future>
 #include <atomic>
 #include <csignal>
+#include <cstdlib>
 #include <sys/syslog.h>
 
 using namespace std;
@@ -21,7 +22,10 @@ extern std::mutex m;
 extern std::condition_variable cv;
 /* Global variable to track if new request is received or not */
 extern std::atomic<bool> dataReady;
+/* Global variable to track if main thread is runnning or not */
 extern std::atomic<bool> isRunning;
+/* CAN interface name global variable that can be changed */
+extern const char* interfaceName;
 
 enum class StatusCode {
     NODE_STATUS = 500, 
@@ -38,7 +42,6 @@ class Serial
 public:
     Serial();
     ~Serial();
-    int getSerial() const;
     void serialSend(const std::string statusMessage);
     void sendReadFrame(const struct can_frame &receivedFrame);
     void sendStatusMessage(const StatusCode &code, const std::string &message);

@@ -15,14 +15,17 @@
 #define BUFFER_SIZE 200
 
 using namespace std;
-/* Constructor to initialize serial communication */
+
+/* Constructor of class Serial used to initialize serial communication */
 
 Serial::Serial()
 {
+    syslog(LOG_DEBUG, "Initializing serial communication parameters");
     m_serialfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
     if (m_serialfd < 0)
-        throw std::runtime_error("Failed to open serial port. Check if it is used by another device. " + std::string(strerror(errno)));
-
+      { syslog(LOG_ERR, "Failed to open serial port: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+      }
     /* Get the current options of the port and set baudrates to 115200 */
     tcgetattr(m_serialfd, &m_config);
     cfsetispeed(&m_config, B115200);
@@ -49,29 +52,27 @@ Serial::Serial()
 
     if (tcsetattr(m_serialfd, TCSANOW, &m_config) < 0)
     {
-        throw std::runtime_error("Unable to set serial configuration.\n");
+        syslog(LOG_ERR, "Unable to set serial configuration %s", strerror(errno));
+        exit(EXIT_FAILURE);
     }
     tcflush(m_serialfd, TCIFLUSH);
 }
 
-int Serial::getSerial() const
-{
-    return m_serialfd;
-}
-
 Serial::~Serial()
-{
-    // std::cout << "Calling destructor of Serial file desc" << std::endl;
+{   
+    syslog(LOG_DEBUG, "Calling Serial class destructor.");
     close(m_serialfd);
 }
 
-/* Pack received frames from CAN bus into JSON strings and send them via serial */
+/* Function to pack received frames from CAN bus into JSON strings and send them via serial */
+
 void Serial::sendReadFrame(const struct can_frame &receivedFrame)
 {
     json packedFrame;
     char buffer[20];
     sprintf(buffer, "0x%X", receivedFrame.can_id);
     packedFrame["can_id"] = buffer;
+    packedFrame["interface"] = interfaceName;
     packedFrame["dlc"] = receivedFrame.can_dlc;
     std::ostringstream payloadStream;
     payloadStream << "[";
@@ -88,31 +89,36 @@ void Serial::sendReadFrame(const struct can_frame &receivedFrame)
     std::string jsonString = packedFrame.dump();
     serialSend(jsonString);
 }
+/* Function to pack status messages into JSON strings and send send them via serial */
 
 void Serial::sendStatusMessage(const StatusCode &code, const std::string &message)
 {
     json packedStatus;
+    packedStatus["interface"] = interfaceName;
     packedStatus["status_code"] = code;
     packedStatus["status_message"] = message;
     std::string jsonString = packedStatus.dump();
     serialSend(jsonString);
 }
 
+/* Function to send read frame from CAN bus or status message to serial */
+
 void Serial::serialSend(const std::string statusMessage)
 {
     const char *pMessage = statusMessage.c_str();
     int nbytes = write(m_serialfd, pMessage, strlen(pMessage));
     if (nbytes < 0)
-    {
-        throw std::runtime_error("No bytes written to file. " + std::string(strerror(errno)));
+    {   syslog(LOG_ERR, "No bytes written to serial port: %s", strerror(errno));
     }
+    else
+        syslog(LOG_INFO, "Sent message: %s", pMessage);
 }
 
-/* Function to read from serial port */
+/* Function to read requests from serial port */
 
 void Serial::serialReceive(json &serialRequest)
 {
-    syslog(LOG_DEBUG, "started serialReceive function");
+    syslog(LOG_DEBUG, "Started serialReceive function call");
     char buf[BUFFER_SIZE];
     int bufPos = 0;
     int bytesRead = 0;
@@ -123,7 +129,7 @@ void Serial::serialReceive(json &serialRequest)
         if (!isRunning)
             break;
 
-        syslog(LOG_DEBUG, "Reading from serial port ...");
+        syslog(LOG_DEBUG, "Waiting for serial data ...");
         bytesRead = read(m_serialfd, &buf[bufPos], 1);
         if (bytesRead > 0)
         {

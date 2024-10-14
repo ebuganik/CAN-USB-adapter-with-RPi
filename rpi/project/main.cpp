@@ -4,7 +4,6 @@
 #include <iostream>
 #include <iomanip>
 #include <time.h>
-#include <cstdlib>
 #include <thread>
 #include <atomic>
 #include <sys/syslog.h>
@@ -20,6 +19,8 @@ void sigintHandler(int signal)
 }
 
 using namespace std;
+
+// TODO: finish logging 
 int main(int argc, char *argv[])
 {
     syslog(LOG_INFO, "Starting C++ Application on Raspberry Pi");

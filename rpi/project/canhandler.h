@@ -15,7 +15,6 @@
 
 /* Default can interface name, if no command line arguments were given */
 #define DEFAULT_INTERFACE_NAME "can0"
-extern const char* interfaceName;
 /* Flag to track if write request with cycle_ms parameter is received */
 extern std::atomic<bool> cycleTimeRec;
 
