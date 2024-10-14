@@ -63,6 +63,15 @@ SERIAL_BAUDRATE = {
      4000000 : '4000000'
 }
 
+# Function to open user manual.txt file 
+def show_manual():
+    try:
+        with open('manual.txt', 'r') as file:
+            manual_text = file.read()
+            print(manual_text)
+    except FileNotFoundError:
+        print("Error: Manual file not found.")
+
 # Function to verify if a write or read request has already been sent before (is stored in write_dict)
 def method_check(method):
     for key in reversed(write_dict):
@@ -109,26 +118,28 @@ def check_r_count(formatted_can_id):
 # Function to input write/read request parameters, combined into a JSON string
 def read_input():
     while True:
-        method = (
-            input("Enter method (write or read or CTRL+C to exit): ").strip().lower()
+        command = (
+            input("Enter command: ").strip().lower()
         )
-        if method in ["write", "read"]:
+        if command in ["write", "read"]:
             break
+        elif command == '--man':
+            show_manual()
         else:
-            print("Method unknown. Enter 'write' or 'read'.")
+            print(f"Unknown command: {command}. Use '--man' for assistance.")
 
-    json_data = {"method": method}
+    json_data = {"method": command}
 
     # To send write request via serial, JSON string should be packed as 'R"({"method":write","bitrate":250000,"id":"0x123","dlc":4,"payload":"[0x11,0x22,0x33,0x44]"})"'
-    if method == "write":
+    if command == "write":
         try:
 
             # Add check in case user wants to repeat last write request
             if write_dict.__len__() > 0:
-                if method_check(method):
+                if method_check(command):
                     repeat = input("Repeat last write request? (Y/N): ").strip().upper()
                     if repeat == "Y":
-                        res_w = repeat_request(method)
+                        res_w = repeat_request(command)
                         json_send = f'R"({res_w})"' 
                         json_send += "\n"
                         return json_send
@@ -215,14 +226,14 @@ def read_input():
 
     # To send read request via serial, JSON string should be packed as 'R"({"method":read","bitrate":250000})"'
     # In case filtering CAN frames should be enabled, JSON string should be packed as 'R"({"method":read","bitrate":250000, "can_id": "[0x123, 0x200]", "can_mask": "[0x7FF, 0x700]"})"'
-    elif method == "read":
+    elif command == "read":
         try:
             # Add check in case user wants to repeat last read request
             if write_dict.__len__() > 0:
-                if method_check(method):
+                if method_check(command):
                     repeat = input("Repeat last read request? (Y/N): ").strip().upper()
                     if repeat == "Y":
-                        res_r = repeat_request(method)
+                        res_r = repeat_request(command)
                         json_send = f'R"({res_r})"'
                         json_send += "\n"
                         return json_send
@@ -302,6 +313,7 @@ def read_input():
                 json_data.update(
                     {
                         "bitrate": bitrate,
+                        "filter_enable" : "YES",
                         "can_id": formatted_can_id,
                         "can_mask": formatted_can_mask,
                     }
@@ -310,7 +322,7 @@ def read_input():
             # No filtering option
             else:
                 # Pack data into JSON
-                json_data.update({"bitrate": bitrate})
+                json_data.update({"bitrate": bitrate, "filter_enable" : "NO"})
 
         except ValueError as e:
             print(f"Error: {e}")
