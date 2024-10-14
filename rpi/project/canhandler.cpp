@@ -134,6 +134,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 
             std::this_thread::sleep_for(std::chrono::milliseconds(*cycle));
         }
+        syslog(LOG_DEBUG, "Exiting canSendPeriod function.");
     }
 }
 
@@ -141,6 +142,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 
 void CANHandler::canSend(const struct can_frame &frame)
 {
+    syslog(LOG_DEBUG, "Started canSend function call.");
     Serial inform;
     int res = can_get_state(m_ifname, &m_state);
     if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
@@ -163,6 +165,7 @@ void CANHandler::canSend(const struct can_frame &frame)
         inform.sendStatusMessage(StatusCode::OPERATION_SUCCESS, "Sending CAN frame successful!");
         return;
     }
+    syslog(LOG_DEBUG, "Exiting canSend function call.");
 }
 /* This function does string payload parsing into std::vector array of ints */
 
@@ -276,17 +279,18 @@ int CANHandler::canRead()
             }
             if (elapsedTime.count() >= 5.00)
             {
-                syslog(LOG_INFO, "Reading time of error frames elapsed.");
+                syslog(LOG_INFO, "Reading time of ERROR frames elapsed.");
                 break;
             }
         }
-
+        syslog(LOG_DEBUG, "Exiting canRead function after successful read.");
         return 1;
     }
 }
 
 void CANHandler::canFilterEnable(std::vector<std::pair<int, int>> &filterPair)
 {
+    syslog(LOG_DEBUG, "Entering canFilterEnable function.");
     struct can_filter recFilter[filterPair.size()];
     for (size_t i = 0; i < filterPair.size(); ++i)
     {
@@ -295,7 +299,15 @@ void CANHandler::canFilterEnable(std::vector<std::pair<int, int>> &filterPair)
     }
 
     if (setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_FILTER, &recFilter, sizeof(recFilter)) < 0)
+    {
         syslog(LOG_ERR, "Unable to set reception filter: %s", strerror(errno));
+    }
+
+    else
+    {
+        syslog(LOG_INFO, "Reception filter set successfully.");
+    }
+    syslog(LOG_DEBUG, "Exiting canFilterEnable function.");
 }
 
 void CANHandler::canFilterDisable()
@@ -306,10 +318,18 @@ void CANHandler::canFilterDisable()
 
 void CANHandler::errorFilter()
 {
-
+    syslog(LOG_DEBUG, "Entering errorFilter function.");
     can_err_mask_t errMask = CAN_ERR_MASK;
     if (setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_ERR_FILTER, &errMask, sizeof(errMask)) < 0)
+    {
         syslog(LOG_ERR, "Unable to set error filter: %s", strerror(errno));
+    }
+
+    else
+    {
+        syslog(LOG_INFO, "Error filter set successfully.");
+    }
+    syslog(LOG_DEBUG, "Exiting errorFilter function.");
 }
 // TODO: finish loopBack call and logging messages
 
@@ -329,7 +349,6 @@ void CANHandler::loopBack(int mode)
         setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS, &recv_own_msgs, sizeof(recv_own_msgs));
     }
 }
-// TODO: finish logging 
 
 void CANHandler::getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMessage)
 {
@@ -339,29 +358,37 @@ void CANHandler::getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMes
     {
     case CAN_ERR_CRTL_UNSPEC:
         errorMessage += "unspecified";
+        syslog(LOG_ERR, errorMessage.c_str());
         break;
     case CAN_ERR_CRTL_RX_OVERFLOW:
         errorMessage += "RX buf overflow";
+        syslog(LOG_ERR, errorMessage.c_str());
         break;
     case CAN_ERR_CRTL_TX_OVERFLOW:
         errorMessage += "TX buf overflow";
+        syslog(LOG_ERR, errorMessage.c_str());
         break;
     case CAN_ERR_CRTL_RX_WARNING:
         errorMessage += "reached warning level for RX errors";
+        syslog(LOG_ERR, errorMessage.c_str());
         break;
     case CAN_ERR_CRTL_TX_WARNING:
         errorMessage += "reached warning level for TX errors";
+        syslog(LOG_ERR, errorMessage.c_str());
         break;
     case CAN_ERR_CRTL_RX_PASSIVE:
         errorMessage += "reached error passive status RX";
+        syslog(LOG_ERR, errorMessage.c_str());
         inform.sendStatusMessage(StatusCode::NODE_STATUS, "ERROR PASSIVE RX STATE\n");
         break;
     case CAN_ERR_CRTL_TX_PASSIVE:
         errorMessage += "reached error passive status TX";
+        syslog(LOG_ERR, errorMessage.c_str());
         inform.sendStatusMessage(StatusCode::NODE_STATUS, "ERROR PASSIVE TX STATE\n");
         break;
     case CAN_ERR_CRTL_ACTIVE:
         errorMessage += "recovered to error active state";
+        syslog(LOG_INFO, errorMessage.c_str());
         inform.sendStatusMessage(StatusCode::NODE_STATUS, "ERROR ACTIVE STATE\n");
 
         break;
@@ -649,50 +676,50 @@ void CANHandler::frameAnalyzer(const struct can_frame &frame)
     }
 }
 
-// TODO: finish initCAN logging messages
-
 int initCAN(int bitrate)
 {
-    /* In case interface can0 is up */
+    syslog(LOG_DEBUG, "Shutting down CAN interface");
     can_do_stop("can0");
 
-    /* Set interface bitrate */
+    syslog(LOG_DEBUG, "Configuring bitrate for CAN interface to %d", bitrate);
     if (can_set_bitrate("can0", bitrate) != 0)
     {
-        std::cout << "Unable to set interface bitrate!" << std::endl;
+        syslog(LOG_ERR, "Unable to configure bitrate for CAN interface!");
     }
-    /* Set interface up */
+
+    syslog(LOG_DEBUG, "Setting up CAN interface.");
     if (can_do_start("can0") != 0)
     {
-        std::cout << "Unable to start up the interface!" << std::endl;
+        syslog(LOG_ERR, "Failed to initialize CAN interface!");
+        // TODO: return or exit?
         return -1;
     }
     else
         return 1;
 }
-// TODO: finish processRequest logging messages
 
 void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct can_frame &sendFrame, int *cycle)
 {
-
+    syslog(LOG_DEBUG, "Started processRequest function call.");
     if (serialRequest["method"] == "write")
     {
-        std::cout << "----------Write function detected----------" << std::endl;
+        syslog(LOG_INFO, "Write function detected.");
         if (serialRequest.contains("cycle_ms"))
         {
             cycleTimeRec.store(true);
             *cycle = serialRequest["cycle_ms"];
+            syslog(LOG_INFO, "Cycle time in ms added: %d", *cycle);
         }
         else
         {
             cycleTimeRec.store(false);
+            syslog(LOG_INFO, "No cycle time added.");
         }
 
         sendFrame = socket.unpackWriteReq(serialRequest);
 
         if (cycleTimeRec)
         {
-            std::cout << "Cycle time in ms: " << std::dec << cycle << std::endl;
             std::unique_lock<std::mutex> lock(m);
             initCAN(serialRequest["bitrate"]);
             CANHandler s("can0");
@@ -701,7 +728,6 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
         }
         else
         {
-            std::cout << "No cycle time added." << std::endl;
             initCAN(serialRequest["bitrate"]);
             CANHandler writeOp(interfaceName);
             writeOp.canSend(sendFrame);
@@ -713,7 +739,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
             cycleTimeRec.store(false);
         }
 
-        std::cout << "----------Read function detected----------" << std::endl;
+        syslog(LOG_INFO, "Read function detected.");
         initCAN(serialRequest["bitrate"]);
         CANHandler readOp(interfaceName);
         if (serialRequest.contains("filter_enable") && serialRequest["filter_enable"] == "YES")
@@ -723,6 +749,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
         readOp.errorFilter();
         readOp.canRead();
     }
+    syslog(LOG_DEBUG, "Exiting processRequest function call.");
 }
 
 void CANHandler::displayFrame(const struct can_frame &frame)
