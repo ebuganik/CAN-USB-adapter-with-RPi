@@ -10,9 +10,10 @@
 
 std::atomic<bool> isRunning(true);
 const char *interfaceName;
+
 void sigintHandler(int signal)
 {
-    std::cout << "\nSIGINT received. Initiating shutdown..." << std::endl;
+    syslog(LOG_DEBUG, "SIGINT received. Initiating shutdown");
     std::unique_lock<std::mutex> lock(m);
     isRunning = false;
     cv.notify_all();
@@ -20,37 +21,31 @@ void sigintHandler(int signal)
 
 using namespace std;
 
-// TODO: finish logging 
 int main(int argc, char *argv[])
 {
     syslog(LOG_INFO, "Starting C++ Application on Raspberry Pi");
     std::signal(SIGINT, sigintHandler);
+    syslog(LOG_DEBUG, "Initializing RPI GPIO setup");
     wiringPiSetupGpio();
     pinMode(17, OUTPUT);
     Serial serial;
+    if (argc > 1) { interfaceName = argv[1];}
     initCAN(200000);
-    if (argc > 1)
-    {
-        interfaceName = argv[1];
-        std::cout << interfaceName << std::endl;
-    }
-    else
-        interfaceName = DEFAULT_INTERFACE_NAME;
-    std::cout << interfaceName << std::endl;
     CANHandler socket(interfaceName);
     struct can_frame sendFrame = {0};
     int cycleTime = 0;
     json serialRequest;
+    syslog(LOG_DEBUG, "Creating CAN thread to perform periodic writing to CAN bus.");
     std::thread canThread(&CANHandler::canSendPeriod, &socket, std::ref(sendFrame), &cycleTime);
     while (isRunning)
     {
         serial.serialReceive(serialRequest);
         socket.processRequest(serialRequest, socket, sendFrame, &cycleTime);
+        syslog(LOG_INFO, "Thread sleeping time. Read new request or terminate application.");
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }
     sleep(1);
     canThread.join();
-    std::cout << "Program safely terminated!" << std::endl;
-    syslog(LOG_INFO, "Exiting program");
+    syslog(LOG_DEBUG, "Application terminated safely.");
     return 0;
 }

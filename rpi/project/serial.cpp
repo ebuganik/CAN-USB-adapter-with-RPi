@@ -111,7 +111,7 @@ void Serial::serialSend(const std::string statusMessage)
     {   syslog(LOG_ERR, "No bytes written to serial port: %s", strerror(errno));
     }
     else
-        syslog(LOG_INFO, "Sent message: %s", pMessage);
+        syslog(LOG_INFO, "Message sent to serial port: %s", pMessage);
 }
 
 /* Function to read requests from serial port */

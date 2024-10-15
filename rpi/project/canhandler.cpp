@@ -86,7 +86,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
     int res = can_get_state(m_ifname, &m_state);
     if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
-        inform.sendStatusMessage(StatusCode::NODE_STATUS, "Unable to send data, bus off! Restarting interface...");
+        inform.sendStatusMessage(StatusCode::NODE_STATUS, "Unable to send data, BUS OFF! Restarting interface...");
         syslog(LOG_ALERT, "Node in BUS OFF or ERROR WARNING state. Restart required.");
         can_do_restart(m_ifname);
         return;
@@ -100,7 +100,10 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
                     { return cycleTimeRec.load() || !isRunning.load(); });
         }
         if (!isRunning)
+        {
+            syslog(LOG_DEBUG, "Exiting canSendPeriod function call. SIGINT received.");
             break;
+        }
 
         while (isRunning)
         {
@@ -130,11 +133,13 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
                 }
             }
             if (!isRunning)
+            {
+                syslog(LOG_DEBUG, "Exiting canSendPeriod function call. SIGINT received.");
                 break;
+            }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(*cycle));
         }
-        syslog(LOG_DEBUG, "Exiting canSendPeriod function.");
     }
 }
 
@@ -163,9 +168,9 @@ void CANHandler::canSend(const struct can_frame &frame)
     {
         blinkLed(17, 1000);
         inform.sendStatusMessage(StatusCode::OPERATION_SUCCESS, "Sending CAN frame successful!");
+        syslog(LOG_DEBUG, "Exiting canSend function call after successful write.");
         return;
     }
-    syslog(LOG_DEBUG, "Exiting canSend function call.");
 }
 /* This function does string payload parsing into std::vector array of ints */
 
@@ -678,20 +683,19 @@ void CANHandler::frameAnalyzer(const struct can_frame &frame)
 
 int initCAN(int bitrate)
 {
-    syslog(LOG_DEBUG, "Shutting down CAN interface");
-    can_do_stop("can0");
+    syslog(LOG_DEBUG, "Shutting down CAN interface %s", interfaceName);
+    can_do_stop(interfaceName);
 
-    syslog(LOG_DEBUG, "Configuring bitrate for CAN interface to %d", bitrate);
-    if (can_set_bitrate("can0", bitrate) != 0)
+    syslog(LOG_DEBUG, "Configuring bitrate for CAN interface %s to %d", interfaceName, bitrate);
+    if (can_set_bitrate(interfaceName, bitrate) != 0)
     {
-        syslog(LOG_ERR, "Unable to configure bitrate for CAN interface!");
+        syslog(LOG_ERR, "Unable to configure bitrate for CAN interface %s!", interfaceName);
     }
 
-    syslog(LOG_DEBUG, "Setting up CAN interface.");
-    if (can_do_start("can0") != 0)
+    syslog(LOG_DEBUG, "Setting up CAN interface %s.", interfaceName);
+    if (can_do_start(interfaceName) != 0)
     {
-        syslog(LOG_ERR, "Failed to initialize CAN interface!");
-        // TODO: return or exit?
+        syslog(LOG_ERR, "Failed to set up CAN interface %s!", interfaceName);
         return -1;
     }
     else
