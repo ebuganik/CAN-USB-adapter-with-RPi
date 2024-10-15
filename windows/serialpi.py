@@ -63,4 +63,3 @@ def get_serial_ports():
 
 def is_valid_port(port):
     return port in get_serial_ports()
-
