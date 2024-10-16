@@ -15,7 +15,7 @@ This repository is a part of a practical project for an undergraduate thesis at 
 - USB to TTL Serial 3.3V Adapter Cable
 - PCAN-USB (optional)
 
-## Raspberry Pi and Hardware Interface Configuration
+## Raspberry Pi and Hardware Interface Setup
 ### Initial setup of Raspberry Pi 
 This Raspberry Pi is connected to the PC via a USB to Ethernet adapter. Since the Ethernet adapter has its own IP address, it was also necessary to set the IP address of the Raspberry Pi device in the `/etc/dhcpcd.conf` with `sudo` privileges file, by adding the following lines:
 ```
