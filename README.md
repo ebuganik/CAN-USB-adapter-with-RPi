@@ -45,7 +45,7 @@ It's also useful to have serial console configured in case of testing serial com
 dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait 
 ```
 ### Raspberry Pi and Hardware connections
-According to the conceptual block diagram, the Raspberry Pi must be connected to to the MCP2515 microcontroller to interface with the CAN bus. Additionally, to establish communication with the PC, an appropriate solution is needed to enable serial communication. The next step is to review the Raspberry Pi pins that are suitable for the protocols indicated in the diagram. The following image highlights the pins on the Raspberry Pi used for the purposes of this project.
+According to the conceptual block diagram, the Raspberry Pi must be connected to to the MCP2515 microcontroller to interface with the CAN bus over MCP2515 transceiver. Additionally, to establish communication with the PC, an appropriate solution is needed to enable serial communication. The next step is to review the Raspberry Pi pins that are suitable for the protocols indicated in the diagram. The following image highlights the pins on the Raspberry Pi used for the purposes of this project.
 <p align="center">
 <img src = "https://github.com/user-attachments/assets/75d73bf0-53fb-4369-afc7-87fa7d1f9be5" width = "750, height = "250">
   
