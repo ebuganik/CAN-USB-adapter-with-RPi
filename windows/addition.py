@@ -1,8 +1,11 @@
 import argparse
 import serialpi as sp
 
-# Mapping supported bitrates for testing with PEAKCAN-USB (CAN SJA-1000 mode)
-
+"""
+PCAN_BITRATES : dict
+    A dictionary mapping supported bitrates for testing with PEAKCAN-USB (CAN SJA-1000 mode).
+    Keys are bitrates in bits per second (bps), and values are human-readable strings.
+"""
 PCAN_BITRATES = {
     5000: "5 kbps",
     10000: "10 kbps",
@@ -22,7 +25,11 @@ PCAN_BITRATES = {
     1000000: "1 Mbps",
 }
 
-# Mapping supported baudrates for serial communication
+"""
+SERIAL_BAUDRATE : dict
+    A dictionary mapping supported baudrates for serial communication.
+    Keys are baudrates in bits per second (bps), and values are corresponding string representations in termios.h library (in C++ application).
+"""
 
 SERIAL_BAUDRATE = {
      50   :'B50',
@@ -55,19 +62,33 @@ SERIAL_BAUDRATE = {
      3000000 : '3000000',
      3500000 : '3500000',
      4000000 : '4000000'
-}
-
+} 
 def parse_n_check():
-     # Extract parameters from command line or use default values for port and baudrate
+    """
+    Parses command line arguments and checks their validity.
+
+    This function extracts parameters from the command line or uses default values for
+    the serial port and baudrate. It checks if the parsed baudrate is in the mapped serial
+    baudrates dictionary. If not, it uses the default baudrate (in this case, 115 200). It also checks if the parsed
+    serial port is in the list of available serial ports. If not, it requests new input.
+
+    Returns:
+    --------
+    tuple
+        A tuple containing the valid serial port and baudrate.
+
+    Raises:
+    -------
+    ValueError
+        If the baudrate is not valid.
+    """
     parser = argparse.ArgumentParser(description= 'Serial communication parameters input ')
     parser.add_argument('--port', type=str, default='COM13', help='Serial port name (e.g., COM13)' )
     parser.add_argument('--baudrate', type=int, default=115200, help='Data transfer speed')
     args = parser.parse_args()
-    # Check if parsed baudrate is in mapped serial baudrates dictionary. If not, use default baudrate
     if args.baudrate not in SERIAL_BAUDRATE:
         args.baudrate = 115200
         print(f"\n\nInvalid baudrate: {args.baudrate}. Using default baudrate: {args.baudrate}.")
-    # Check if parsed serial port is in serial ports list. If not, request new input 
     while not sp.is_valid_port(args.port):
         print(f"Port {args.port} is not valid. Available ports: {', '.join(sp.get_serial_ports())}")
         args.port = input("Please enter a valid serial port: ")

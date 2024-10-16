@@ -2,6 +2,24 @@ import terminal as term
 import json
 
 def print_input(method,json_string):
+    """
+    Prints the input parameters for a CAN bus operation.
+
+    Depending on the method ('write' or 'read'), this function parses the request JSON string
+    and prints the relevant parameters for the CAN bus operation.
+
+    Parameters:
+    -----------
+    method : str
+        The method of operation ('write' or 'read').
+    json_string : str
+        The JSON string containing the parameters.
+
+    Raises:
+    -------
+    ValueError
+        If the JSON string cannot be parsed.
+    """
     if method == "write":
         json_list = json.loads(json_string)
         can_id = json_list.get("can_id")
@@ -11,7 +29,6 @@ def print_input(method,json_string):
         payload_strip = payload.strip("[]")
         payload_bytes = [int(byte, 16) for byte in payload_strip.split(",")]
         payload_str = " ".join(f"0x{byte:x}" for byte in payload_bytes)
-        # Check if cycle time in miliseconds is specified
         if json_list.get("cycle_ms") == None:
             cycle = 0
         else: cycle = json_list.get("cycle_ms")
@@ -46,10 +63,24 @@ def print_input(method,json_string):
 
 
 def print_output(json_string):
+    """
+    Prints the output response from a CAN bus operation.
+
+    This function parses response in form of a JSON string and prints the relevant response parameters
+    from the CAN bus operation.
+
+    Parameters:
+    -----------
+    json_string : str
+        The JSON string containing the response parameters.
+
+    Raises:
+    -------
+    ValueError
+        If the JSON string cannot be parsed.
+    """
     print("response:")
-    # Read data from CAN bus is packed into JSON string
     if "can_id" in json_string:
-        # Convert JSON into dictionary
         json_list = json.loads(json_string)
         interface = json_list.get("interface")
         can_id = json_list.get("can_id")
@@ -63,7 +94,6 @@ def print_output(json_string):
         print("=======================================================================================================================================")
 
     else:
-        # Information about success or state of a CAN node is received as a normal string
         json_list = json.loads(json_string)
         interface = json_list.get("interface")
         code = json_list.get("status_code")

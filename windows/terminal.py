@@ -3,14 +3,29 @@ import addition as add
 import json
 import time
 
-# Dictionaries to save info about written and read frames (+ cycles count)
-
+"""
+write_dict : dict
+    Dictionary to store information about written frames and their counts.
+read_dict : dict
+    Dictionary to store information about read frames and their counts.
+read_dict_cycle : dict
+    Dictionary to store timestamps of read frames for calculating time intervals.
+"""
 write_dict = {}
 read_dict = {}
 read_dict_cycle = {}
 
-# Function to open user manual.txt file 
 def show_manual():
+    """
+    Opens and displays the user manual from 'manual.txt'.
+
+    This function attempts to open the 'manual.txt' file and print its contents.
+    
+    Raises:
+    -------
+    FileNotFoundError
+        If the file is not found, it prints an error message.
+    """
     try:
         with open('manual.txt', 'r') as file:
             manual_text = file.read()
@@ -18,51 +33,149 @@ def show_manual():
     except FileNotFoundError:
         print("Error: Manual file not found.")
 
-# Function to verify if a write or read request has already been sent before (is stored in write_dict)
 def method_check(method):
+    """
+    Verifies if a write or read request has already been sent before.
+    This function checks if the specified method is present in the write_dict.
+
+    Parameters:
+    -----------
+    method : str
+        The method to check ('write' or 'read').
+
+    Returns:
+    --------
+    bool
+        True if the method is found in write_dict, False otherwise.
+    """
     for key in reversed(write_dict):
         if method in key:
             return True
     return False
 
-# Function that returns previous write/read request to be executed 
 def repeat_request(method):
-    # Returns last found key by method
+    """
+    Returns the previous write/read request to be executed again.
+
+    This function searches for the last request of the specified method in write_dict
+    and updates the count for that request.
+
+    Parameters:
+    -----------
+    method : str
+        The method to repeat ('write' or 'read').
+
+    Returns:
+    --------
+    str
+        The last found request string for the specified method.
+    """
     for key in reversed(write_dict):
         if method in key:
             check_w_count(key)
             return key
 
-
-# Function to check write/read requests and update the value of the counters
 def check_w_count(write_string):
-    # Check if it's already in dictionary
+    """
+    Checks write requests and updates the value of the counters.
+
+    This function increments the count for the specified write request in write_dict.
+    If the request is not already in the dictionary, it adds it with a count of 1.
+
+    Parameters:
+    -----------
+    write_string : str
+        The write request string to check.
+    """
     if write_string in write_dict:
-        # Increment the count for the existing key
         write_dict[write_string] += 1
     else:
-        # Add new key with count 1
         write_dict[write_string] = 1
 
 
-# Function that checks read frames by the can_id field, calculates the time interval between two read frames with the same can_id, and updates the value of the counters
 def check_r_count(formatted_can_id):
+    """
+    Checks read frames by the can_id field, calculates the time interval between two read frames with the same can_id, and updates the value of the counters.
+
+    This function increments the count for the specified can_id in read_dict and calculates
+    the time interval since the last occurrence. It updates the timestamp in read_dict_cycle.
+
+    Parameters:
+    -----------
+    formatted_can_id : str
+        The formatted CAN ID to check.
+
+    Returns:
+    --------
+    float
+        The time interval in milliseconds since the last occurrence of the specified can_id.
+    """
     current_time = time.time()
     if formatted_can_id in read_dict:
-        # Increment the count
         read_dict[formatted_can_id] += 1
-        # Calculate the time interval since the last occurence and update the dictionary
         time_interval = (current_time - read_dict_cycle[formatted_can_id]) * 1000
         read_dict_cycle[formatted_can_id] = current_time
         return time_interval
     else:
-        # Initialize the count and timestamp for the new frame
         read_dict[formatted_can_id] = 1
         read_dict_cycle[formatted_can_id] = current_time
         return 0
 
-# Function to input write/read request parameters, combined into a JSON string
 def read_input():
+    """
+    Inputs write/read request parameters and combines them into a JSON string.
+
+    This function prompts the user to enter a operation command ('write' or 'read' and the corresponding
+    parameters) or CTRL+C to interrupt application and '--man' to read user manual. 
+    It formats the parameters into a JSON string for serial communication, so chosen request
+    parameters are displayed later to the user before sending the request to serial port.
+    
+    The function also allows user to repeat previous 'read' or 'write' request if exists. Also, 
+    user is able to select the bitrate from the available bitrate values in PEAKCAN_BITRATES dictionary.
+
+    JSON string format for 'write' request:
+    ---------------------------------------
+    {
+        "method": "write",
+        "bitrate": <bitrate>,
+        "can_id": "0x<can_id>",
+        "dlc": <dlc>,
+        "payload": "[0x<byte1>, 0x<byte2>, ...]",
+        "cycle_ms": <cycle_time> (optional)
+    }
+    
+    To send a write request via serial, JSON string should be packed as following:
+    -----------------------------------------------
+    'R"({"method":"write","bitrate":<bitrate>,"can_id":"0x<can_id>","dlc":<dlc>,"payload":"[0x<byte1>,0x<byte2>,0x<bytes3>]"})"'
+
+
+    JSON string format for 'read' request:
+    --------------------------------------
+    {
+        "method": "read",
+        "bitrate": <bitrate>,
+        "can_id": "[0x<can_id1>, 0x<can_id2>, ...]" (optional),
+        "can_mask": "[0x<mask1>, 0x<mask2>, ...]" (optional)
+    }
+    
+    To send a read request via serial, JSON string should be packed as following:
+    ----------------------------------------------
+    'R"({"method":"read","bitrate":<bitrate>})"'
+
+    To send a read request with enabled filtering via serial, JSON string should be packed as following:
+    --------------------------------------------------------------------------------
+    'R"({"method":"read","bitrate":<can_id>, "can_id": "[0x<can_id1>, 0x<can_id2>]", "can_mask": "[0x<mask1>, 0x<mask2>]"})"'
+    
+    Returns:
+    --------
+    str or None
+        The formatted JSON string for the request, or None if there is an error.
+
+    Raises:
+    -------
+    ValueError
+        If there is an error in the input values.
+    """
     while True:
         command = (
             input("Enter command: ").strip().lower()
@@ -76,11 +189,9 @@ def read_input():
 
     json_data = {"method": command}
 
-    # To send write request via serial, JSON string should be packed as 'R"({"method":write","bitrate":250000,"id":"0x123","dlc":4,"payload":"[0x11,0x22,0x33,0x44]"})"'
+    
     if command == "write":
         try:
-
-            # Add check in case user wants to repeat last write request
             if write_dict.__len__() > 0:
                 if method_check(command):
                     repeat = input("Repeat last write request? (Y/N): ").strip().upper()
@@ -89,7 +200,7 @@ def read_input():
                         json_send = f'R"({res_w})"' 
                         json_send += "\n"
                         return json_send
-            # Print PCAN-USB supported bitrates to choose
+                    
             pcan_bitrates_str = "\n ".join(
                 [f"{rate} bps ({add.PCAN_BITRATES[rate]})" for rate in add.PCAN_BITRATES]
             )
@@ -106,33 +217,29 @@ def read_input():
                 except ValueError as e:
                     print(f"Error: {e}")
 
-            # CAN ID input
             while True:
                 try:
                     can_id = input("Enter CAN ID as hex value: ").strip()
                     can_id = int(can_id, 16)
-                    if not (0 <= can_id <= 2047):  # Check Standard CAN ID range
+                    if not (0 <= can_id <= 2047):  
                         raise ValueError("Not a valid CAN ID.")
                     formatted_id = f"0x{can_id:03X}"
-                    break  # input valid
+                    break  
                 except ValueError as e:
                     print(f"Error: {e}")
 
-            # DLC
             while True:
                 try:
                     dlc = int(input("Enter CAN DLC (Data Length Code): ").strip())
-                    if not (0 <= dlc <= 8):  # DLC range
+                    if not (0 <= dlc <= 8): 
                         raise ValueError("Not a valid CAN DLC.")
                     break
                 except ValueError as e:
                     print(f"Error: {e}")
 
-            # Payload input check
             while True:
                 payload = input(
-                    "Input payload hex bytes, separated by spaces e.g. 11 22 33: "
-                ).strip()
+                    "Input payload hex bytes, separated by spaces e.g. 11 22 33: ").strip()
                 can_id_bytes = payload.split()
                 if len(can_id_bytes) != dlc:
                     print(
@@ -140,7 +247,6 @@ def read_input():
                     )
                     continue
 
-                # Format payload bytes
                 try:
                     can_id_hex = [int(b, 16) for b in can_id_bytes]
                     formatted_can_id = [f"0x{byte:02X}" for byte in can_id_hex]
@@ -150,13 +256,11 @@ def read_input():
                     continue
                 break
             
-            # Add cycle time 
             cycle = input("Add frame cycle time? Y/N: ").strip().upper()     
             if cycle == "Y":
                 cycle_time = int(input("Enter cycle time in ms: ").strip())
                 json_data.update({"cycle_ms": cycle_time})
                       
-                # Pack data into JSON
             json_data.update(
                 {
                     "can_id": formatted_id,
@@ -170,11 +274,8 @@ def read_input():
             print(f"Error: {e}")
             return None
 
-    # To send read request via serial, JSON string should be packed as 'R"({"method":read","bitrate":250000})"'
-    # In case filtering CAN frames should be enabled, JSON string should be packed as 'R"({"method":read","bitrate":250000, "can_id": "[0x123, 0x200]", "can_mask": "[0x7FF, 0x700]"})"'
     elif command == "read":
         try:
-            # Add check in case user wants to repeat last read request
             if write_dict.__len__() > 0:
                 if method_check(command):
                     repeat = input("Repeat last read request? (Y/N): ").strip().upper()
@@ -184,7 +285,6 @@ def read_input():
                         json_send += "\n"
                         return json_send
 
-            # Print PCAN-USB supported bitrates to choose
             pcan_bitrates_str = "\n ".join(
                 [f"{rate} bps ({add.PCAN_BITRATES[rate]})" for rate in add.PCAN_BITRATES]
             )
@@ -201,10 +301,8 @@ def read_input():
                 except ValueError as e:
                     print(f"Error: {e}")
 
-            # Check if user wants enabled filtering
             mask = input("Enable filtering of CAN frames? Y/N: ").strip().upper()
             if mask == "Y":
-                # Enter CAN ID
                 while True:
                     try:
                         can_ids = input(
@@ -219,7 +317,6 @@ def read_input():
                         print(f"Error: {e}")
                         continue
 
-                    # Format CAN ID bytes
                     try:
                         can_id_hex = [int(b, 16) for b in can_id_bytes]
                         formatted_can_ids = [f"0x{byte:02X}" for byte in can_id_hex]
@@ -230,11 +327,9 @@ def read_input():
                     break
 
                 while True:
-                    # Enter CAN masks
                     try:
                         can_masks = input(
-                            "Input CAN mask hex bytes, separated by spaces e.g. 11 22 33: "
-                        ).strip()
+                            "Input CAN mask hex bytes, separated by spaces e.g. 11 22 33: ").strip()
                         can_mask_bytes = can_masks.split()
                         if len(can_mask_bytes) != len(can_id_bytes):
                             raise ValueError("Insufficient number of CAN masks.")
@@ -246,7 +341,6 @@ def read_input():
                         print(f"Error: {e}")
                         continue
 
-                    # Format CAN ID bytes
                     try:
                         can_mask_hex = [int(b, 16) for b in can_mask_bytes]
                         formatted_can_masks = [f"0x{byte:02X}" for byte in can_mask_hex]
@@ -265,16 +359,13 @@ def read_input():
                     }
                 )
 
-            # No filtering option
             else:
-                # Pack data into JSON
                 json_data.update({"bitrate": bitrate, "filter_enable" : "NO"})
 
         except ValueError as e:
             print(f"Error: {e}")
             return None
 
-    # Adds new JSON object to list of written JSON objects with count field
     j = json.dumps(json_data)
     check_w_count(j)
     dp.print_input(json_data["method"], j)

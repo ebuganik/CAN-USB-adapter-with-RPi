@@ -4,7 +4,14 @@ import display as dp
 import addition as add
 import time
 
-if __name__ == "__main__":
+def main():
+    """
+    Main function to handle serial communication and data processing.
+
+    This function initializes the serial communication parameters, opens the serial port,
+    and enters a loop to read and write data to the serial port. It handles user input and
+    displays output data. The program can be terminated by the user with a keyboard interrupt.
+    """
     port, baudrate = add.parse_n_check()
     try:
         ser = sp.SerialPi(port,baudrate)
@@ -24,3 +31,6 @@ if __name__ == "__main__":
         print("\nProgram terminated by user.")
     finally:
         ser.close_port()
+    
+if __name__ == "__main__":
+    main()
