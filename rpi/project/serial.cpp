@@ -23,9 +23,10 @@ Serial::Serial()
     syslog(LOG_DEBUG, "Initializing serial communication parameters");
     m_serialfd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_SYNC);
     if (m_serialfd < 0)
-      { syslog(LOG_ERR, "Failed to open serial port: %s", strerror(errno));
+    {
+        syslog(LOG_ERR, "Failed to open serial port: %s", strerror(errno));
         exit(EXIT_FAILURE);
-      }
+    }
     /* Get the current options of the port and set baudrates to 115200 */
     tcgetattr(m_serialfd, &m_config);
     cfsetispeed(&m_config, B115200);
@@ -59,7 +60,7 @@ Serial::Serial()
 }
 
 Serial::~Serial()
-{   
+{
     syslog(LOG_DEBUG, "Calling Serial class destructor.");
     close(m_serialfd);
 }
@@ -108,14 +109,14 @@ void Serial::serialSend(const std::string statusMessage)
     const char *pMessage = statusMessage.c_str();
     int nbytes = write(m_serialfd, pMessage, strlen(pMessage));
     if (nbytes < 0)
-    {   syslog(LOG_ERR, "No bytes written to serial port: %s", strerror(errno));
+    {
+        syslog(LOG_ERR, "No bytes written to serial port: %s", strerror(errno));
     }
     else
         syslog(LOG_INFO, "Message sent to serial port: %s", pMessage);
 }
 
 /* Function to read requests from serial port */
-
 void Serial::serialReceive(json &serialRequest)
 {
     syslog(LOG_DEBUG, "Started serialReceive function call");
@@ -129,12 +130,12 @@ void Serial::serialReceive(json &serialRequest)
         if (!isRunning)
             break;
 
-        syslog(LOG_DEBUG, "Waiting for serial data ...");
         bytesRead = read(m_serialfd, &buf[bufPos], 1);
         if (bytesRead > 0)
         {
             if (buf[bufPos] == START_MARKER)
             {
+                syslog(LOG_DEBUG, "Started reading from serial port.");
                 jsonStarted = 1;
                 bufPos = 0;
             }
@@ -147,12 +148,12 @@ void Serial::serialReceive(json &serialRequest)
             if (buf[bufPos - 1] == END_MARKER)
             {
                 buf[bufPos] = '\0';
-
-                try
+                std::string reqString(buf);
+                auto result = json::accept(reqString);
+                if (result)
                 {
-                    std::string reqString(buf);
                     serialRequest = json::parse(reqString);
-                    { /* Lock mutex */
+                    {   /* Lock mutex */
                         std::unique_lock<std::mutex> lock(m);
                         /* Set global variable */
                         dataReady = true;
@@ -160,21 +161,15 @@ void Serial::serialReceive(json &serialRequest)
                     }
                     break;
                 }
-                catch (json::parse_error &e)
+                else
                 {
                     syslog(LOG_ERR, "Unable to parse serial data!");
                 }
-
                 jsonStarted = 0;
                 bufPos = 0;
                 /* Initialize integer array with zeros */
                 memset((void *)buf, '0', sizeof(buf));
             }
-        }
-        else
-        {
-            // Add a small sleep to prevent busy-waiting
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
 }

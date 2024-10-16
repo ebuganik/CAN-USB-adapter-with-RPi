@@ -101,7 +101,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
         }
         if (!isRunning)
         {
-            syslog(LOG_DEBUG, "Exiting canSendPeriod function call. SIGINT received.");
+            syslog(LOG_DEBUG, "Exiting canSendPeriod function call after received SIGINT signal.");
             break;
         }
 
@@ -263,7 +263,7 @@ int CANHandler::canRead()
 
                 if (m_state == CAN_STATE_ERROR_ACTIVE)
                 {
-                    syslog(LOG_INFO, "Node in ERROR active state and able to read from CAN BUS");
+                    syslog(LOG_INFO, "Node in ERROR ACTIVE state and able to read from CAN BUS");
                     sleep(1);
                     /* In this case, it's probably SFF, RTR or EFF */
                     frameAnalyzer(readFrame);
