@@ -17,14 +17,14 @@ This repository is a part of a practical project for an undergraduate thesis at 
 
 ## Raspberry Pi and Hardware Interface Setup
 ### Initial setup of Raspberry Pi 
-This Raspberry Pi is connected to the PC via a USB to Ethernet adapter. Since the Ethernet adapter has its own IP address, it was also necessary to set the IP address of the Raspberry Pi device in the `/etc/dhcpcd.conf` with `sudo` privileges file, by adding the following lines:
+This Raspberry Pi is connected to the PC via a USB to Ethernet adapter. Since the Ethernet adapter has its own IP address, it was also necessary to set the IP address of the Raspberry Pi device in the `/etc/dhcpcd.conf` file with `sudo` privileges, by adding the following lines:
 ```
 interface <NETWORK>
 static ip_address=<STATICIP>/24
 static routers=<ROUTERIP>
 static domain_name_servers=<DNSIP>
 ```
-Please note that the keywords enclosed in angle brackets (<>) should be replaced with the appropriate values for your network configuration. This ensures that the Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server.
+Note that the keywords enclosed in angle brackets (<>) should be replaced with the appropriate values for your network configuration. This ensures that the Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server.
 
 To use the CAN interface on the Raspberry Pi platform it is necessary to provide an appropriate hardware module that is connected to one of the interfaces offered by this platform. This project assignment involves designing the module using MCP2515 CAN controller and the MCP2551 CAN transceiver, which enable the connection of a microcontroller to the CAN network via the interface.
 
