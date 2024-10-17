@@ -13,18 +13,19 @@ This repository is a part of a practical project for an undergraduate thesis at 
 - Additional electronic components (MCP2515, MCP2551, resistors for voltage division - 10kOhms and 22kOhms, pull-ups 4.7kOhms, terminal resistor 120Ohms, capacitors for power supply and for microcontroller oscillator's quartz crystal)
 - Wires
 - USB to TTL Serial 3.3V Adapter Cable
+- USB to Ethernet adapter
 - PCAN-USB (optional)
 
 ## Raspberry Pi and Hardware Interface Setup
 ### Initial setup of Raspberry Pi 
-This Raspberry Pi is connected to the PC via a USB to Ethernet adapter. Since the Ethernet adapter has its own IP address, it was also necessary to set the IP address of the Raspberry Pi device in the `/etc/dhcpcd.conf` file with `sudo` privileges, by adding the following lines:
+Since the Ethernet adapter has its own IP address, it was also necessary to set the IP address of the Raspberry Pi device in the `/etc/dhcpcd.conf` file with `sudo` privileges, by adding the following lines:
 ```
 interface <NETWORK>
 static ip_address=<STATICIP>/24
 static routers=<ROUTERIP>
 static domain_name_servers=<DNSIP>
 ```
-Note that the keywords enclosed in angle brackets (<>) should be replaced with the appropriate values for your network configuration. This ensures that the Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server.
+*NOTE* that the keywords enclosed in angle brackets (<>) should be replaced with the appropriate values for your network configuration. This ensures that the Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server.
 
 To use the CAN interface on the Raspberry Pi platform it is necessary to provide an appropriate hardware module that is connected to one of the interfaces offered by this platform. This project assignment involves designing the module using MCP2515 CAN controller and the MCP2551 CAN transceiver, which enable the connection of a microcontroller to the CAN network via the interface.
 
@@ -38,7 +39,12 @@ dtparam=spi=on
 dtoverlay=mcp2515-can0,oscillator=16000000,spimaxfrequency=1000000,interrupt=25
 #dtoverlay=mcp2515-can1,oscillator=16000000,spimaxfrequency=1000000,interrupt=24
 ```
-Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we would have `can0` and `can1`. After making changes to the `boot/config.txt` file, it is necessary to execute `sudo reboot` to apply the changes. If we plan to work with both channels, additional connections between the components must be established, which will be explained in the following sections.
+Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we would have `can0` and `can1`. After making changes to the `boot/config.txt` file, it is necessary to execute `sudo reboot` to apply the changes. Connections between the components must be established, what will be explained in the following sections. Afterwards, it is useful to check if MCP2515 can controller is succesfully initialized, especially if we plan to work with both channels:
+```
+dmesg | grep can
+[   39.846066] mcp251x spi0.1 can0: MCP2515 successfully initialized.
+[   39.882300] mcp251x spi0.0 can1: MCP2515 successfully initialized.
+```
 
 It's also useful to have serial console configured in case of testing serial communication (to check if serial cable (USB to UART) works fine, for example). To do that, in this case it was necessary to have following line in `/boot/cmdline.txt`, previously opened with `sudo` privileges:
 ```
