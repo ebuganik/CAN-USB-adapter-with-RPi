@@ -36,8 +36,11 @@ private:
 
 public:
     /**
-     * @brief Constructor of a CANHandler object.
-     * @param ifname Interface name (e.g "can0" or "can1").
+     * @brief Constructor for the CANHandler class.
+     *
+     * This constructor initializes the CAN socket communication. It creates a socket, binds it to the specified interface, and sets up the necessary socket options.
+     *
+     * @param[in] ifname A constant character pointer to the name of the CAN interface (e.g 'can0' or 'can1').
      */
     CANHandler(const char *ifname);
 
@@ -70,41 +73,53 @@ public:
     CANHandler &operator=(CANHandler &&other) noexcept;
 
     /**
-     * @brief Function to send CAN frame periodically.
-     * @param frame CAN frame to send.
-     * @param cycle Cycle time in milliseconds.
+     * @brief Sends a CAN frame periodically based on a specified cycle time.
+     *
+     * This function sends a CAN frame at regular intervals defined by the cycle time.
+     * It checks the CAN state and handles errors such as BUS OFF or ERROR WARNING states.
+     * The function runs in a loop until the `isRunning` flag is set to false.
+     *
+     * @param[in] frame A constant reference to the CAN frame to be sent.
+     * @param[in] cycle A pointer to an integer specifying the cycle time in milliseconds.
      */
     void canSendPeriod(const struct can_frame &frame, int *cycle);
 
     /**
-     * @brief Function to send CAN frame once.
-     * @param frame CAN frame to send.
+     * @brief Sends a CAN frame once.
+     *
+     * This function sends a CAN frame through the CAN interface. It checks the CAN state and handles errors such as BUS OFF or ERROR WARNING states.
+     *
+     * @param[in] frame A constant reference to the CAN frame to be sent.
      */
     void canSend(const struct can_frame &frame);
 
     /**
      * @brief Parse frame payload from string.
-     * @param payload Payload string.
+     * @param[in] payload Payload string.
      * @return Vector of parsed integers.
      */
     std::vector<int> parsePayload(const std::string &payload);
 
     /**
      * @brief Function to unpack frame parameters from a serial write request.
-     * @param request Serial request as JSON.
+     * @param[in] request Serial request as JSON.
      * @return Packed CAN frame.
      */
     struct can_frame unpackWriteReq(const json &request);
 
     /**
      * @brief Function to unpack desired filter can_ids and can_masks to enable filtering read.
-     * @param request Serial request as JSON.
+     * @param[in] request Serial request as JSON.
      */
     void unpackFilterReq(const json &request);
 
     /**
-     * @brief Read CAN frame from CAN bus.
-     * @return Status of the read operation.
+     * @brief Reads a CAN frame from the CAN bus.
+     *
+     * This function reads a CAN frame from the CAN bus, handling timeouts and error states.
+     * It sets a timeout for reading, analyzes the frame, and logs relevant information.
+     *
+     * @return Returns 1 on successful read, -1 on error or timeout.
      */
     int canRead();
 
@@ -148,17 +163,25 @@ public:
     void getTransceiverStatus(unsigned char statusError, std::string &errorMessage);
 
     /**
-     * @brief Analyze CAN frame.
-     * @param frame CAN frame to analyze.
+     * @brief Analyzes a CAN frame and logs relevant information.
+     *
+     * This function inspects the CAN frame's ID and data to determine its type and logs appropriate messages.
+     * It handles various CAN frame types including Remote Transmission Request (RTR), Extended Format (EFF), and error frames.
+     *
+     * @param[in] frame A constant reference to the CAN frame to be analyzed.
      */
     void frameAnalyzer(const struct can_frame &frame);
 
     /**
-     * @brief Process serial request function.
-     * @param serialRequest Serial request as JSON.
-     * @param socket CANHandler socket.
-     * @param sendFrame CAN frame to be sent.
-     * @param cycle Cycle time in milliseconds.
+     * @brief Processes a CAN request based on the provided JSON object.
+     *
+     * This function handles both read and write requests for CAN communication.
+     * It initializes the CAN interface by every new request, processes the request and performs the necessary actions.
+     *
+     * @param[in] serialRequest A reference to a JSON object containing the request details.
+     * @param[in,out] socket A reference to a CANHandler object used for CAN operations.
+     * @param[out] sendFrame A reference to a CAN frame structure where the data to be sent will be stored.
+     * @param[out] cycle A pointer to an integer where the cycle time in milliseconds will be stored, if provided.
      */
     void processRequest(json &serialRequest, CANHandler &socket, struct can_frame &sendFrame, int *cycle);
 
@@ -172,7 +195,7 @@ public:
 
 /**
  * @brief Initialize CAN interface.
- * @param bitrate CAN bitrate.
+ * @param[in] bitrate CAN bitrate.
  * @return Status of the initialization.
  */
 int initCAN(int bitrate);

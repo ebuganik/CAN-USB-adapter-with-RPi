@@ -74,7 +74,7 @@ class Serial
 public:
     /**
      * @brief Constructor of a Serial class object.
-     * 
+     *
      * This constructor initializes the serial communication parameters, opens the serial port,
      * and sets the necessary configurations such as baudrate, parity, and flow control.
      */
@@ -86,27 +86,31 @@ public:
     ~Serial();
 
     /**
-     * @brief Sends a status message (read frame or status on success) over the serial port.
-     * @param statusMessage The status message to be sent.
+     * @brief Sends status message (read frame or status on success) back as a JSON string over the serial port.
+     * @param[in] statusMessage The status message to be sent.
      */
     void serialSend(const std::string statusMessage);
 
     /**
-     * @brief Sends a read frame over the serial port.
-     * @param receivedFrame The CAN frame to be sent.
+     * @brief Sends read frame over the serial port.
+     * @param[in] receivedFrame The CAN frame to be sent.
      */
     void sendReadFrame(const struct can_frame &receivedFrame);
 
     /**
      * @brief Sends a status message with a status code over the serial port.
-     * @param code The status code.
-     * @param message The status message on success.
+     * @param[in] code The status code.
+     * @param[in] message The status message on success.
      */
     void sendStatusMessage(const StatusCode &code, const std::string &message);
 
     /**
-     * @brief Receives a serial request.
-     * @param serialRequest The JSON object to store the received request.
+     * @brief Receives and processes serial data.
+     *
+     * This function reads data from the serial port, detects messages as JSON strings, and parses them.
+     * It runs in a loop until the `isRunning` flag is set to false.
+     *
+     * @param[in,out] serialRequest A reference to a JSON object where the parsed data will be stored.
      */
     void serialReceive(json &serialRequest);
 };
