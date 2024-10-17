@@ -1,28 +1,21 @@
 #include "canhandler.h"
 #include "serial.h"
-#include <iostream>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <linux/can/raw.h>
-#include <stdexcept>
 #include <libsocketcan.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <chrono>
-#include <thread>
-#include <atomic>
 
-using namespace std;
 using namespace std::chrono;
 
 std::mutex m;
 std::condition_variable cv;
 std::atomic<bool> dataReady(false);
 std::atomic<bool> cycleTimeRec(false);
-
-/* Constructor of class CANHandler used to initialize serial communication */
 
 CANHandler::CANHandler(const char *ifname)
 {
@@ -48,14 +41,10 @@ CANHandler::CANHandler(const char *ifname)
     }
 }
 
-/* CANHandler move constructor */
-
 CANHandler::CANHandler(CANHandler &&other) : m_socketfd(other.m_socketfd)
 {
     other.m_socketfd = -1;
 }
-
-/* CANHandler move assignment constructor */
 
 CANHandler &CANHandler::operator=(CANHandler &&other) noexcept
 {
@@ -76,8 +65,6 @@ CANHandler::~CANHandler()
         close(m_socketfd);
     }
 }
-
-/* This function sends CAN frame periodically, for given cycle parameter */
 
 void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 {
@@ -143,8 +130,6 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
     }
 }
 
-/* This function does sending CAN frame once */
-
 void CANHandler::canSend(const struct can_frame &frame)
 {
     syslog(LOG_DEBUG, "Started canSend function call.");
@@ -172,7 +157,6 @@ void CANHandler::canSend(const struct can_frame &frame)
         return;
     }
 }
-/* This function does string payload parsing into std::vector array of ints */
 
 std::vector<int> CANHandler::parsePayload(const std::string &payload)
 {
@@ -187,7 +171,6 @@ std::vector<int> CANHandler::parsePayload(const std::string &payload)
 
     return parsedData;
 }
-/* This function unpacks write serial request parameters to set up can_frame for sending onto CAN BUS */
 
 struct can_frame CANHandler::unpackWriteReq(const json &request)
 {
@@ -197,11 +180,8 @@ struct can_frame CANHandler::unpackWriteReq(const json &request)
     auto payload = request["payload"].get<std::string>();
     auto parsedPayload = parsePayload(payload);
     std::copy(parsedPayload.begin(), parsedPayload.begin() + packedFrame.can_dlc, packedFrame.data);
-    displayFrame(packedFrame);
     return packedFrame;
 }
-
-/* This function unpacks pairs of CAN IDs and CAN masks from received serial request and enables filtering read */
 
 void CANHandler::unpackFilterReq(const json &request)
 {
@@ -216,7 +196,6 @@ void CANHandler::unpackFilterReq(const json &request)
     canFilterEnable(filterPair);
 }
 
-/* This function does reading from CAN BUS */
 int CANHandler::canRead()
 {
     syslog(LOG_DEBUG, "Started canRead function call.");
@@ -267,7 +246,6 @@ int CANHandler::canRead()
                     sleep(1);
                     /* In this case, it's probably SFF, RTR or EFF */
                     frameAnalyzer(readFrame);
-                    displayFrame(readFrame);
                     inform.sendReadFrame(readFrame);
                     break;
                 }
@@ -277,7 +255,6 @@ int CANHandler::canRead()
                     syslog(LOG_WARNING, "Node in state of reading ERROR frames.");
                     sleep(1);
                     frameAnalyzer(readFrame);
-                    displayFrame(readFrame);
                     auto currTime = std::chrono::steady_clock::now();
                     elapsedTime = currTime - startTime;
                 }
@@ -315,12 +292,6 @@ void CANHandler::canFilterEnable(std::vector<std::pair<int, int>> &filterPair)
     syslog(LOG_DEBUG, "Exiting canFilterEnable function.");
 }
 
-void CANHandler::canFilterDisable()
-{
-    if (setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_FILTER, NULL, 0) < 0)
-        syslog(LOG_ERR, "Unable to reset reception filter: %s", strerror(errno));
-}
-
 void CANHandler::errorFilter()
 {
     syslog(LOG_DEBUG, "Entering errorFilter function.");
@@ -336,29 +307,11 @@ void CANHandler::errorFilter()
     }
     syslog(LOG_DEBUG, "Exiting errorFilter function.");
 }
-// TODO: finish loopBack call and logging messages
-
-void CANHandler::loopBack(int mode)
-{
-    /* Local loopBack is enabled by default and can be separately disabled for every socket
-    When enabled, it is possible to receive your own messages */
-    /* 0 - disabled, 1 - enabled */
-    if (mode != 1)
-    {
-        setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &mode, sizeof(mode));
-    }
-    else
-    {
-        int recv_own_msgs = 1; /* 0 = disabled (default), 1 = enabled */
-        setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &mode, sizeof(mode));
-        setsockopt(m_socketfd, SOL_CAN_RAW, CAN_RAW_RECV_OWN_MSGS, &recv_own_msgs, sizeof(recv_own_msgs));
-    }
-}
 
 void CANHandler::getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMessage)
 {
-    /* Subclasses of control error frames */
     Serial inform;
+    /* Subclasses of control error frames */
     switch (ctrlError)
     {
     case CAN_ERR_CRTL_UNSPEC:
@@ -405,6 +358,7 @@ void CANHandler::getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMes
 
 void CANHandler::getProtErrorTypeDesc(unsigned char protError, std::string &errorMessage)
 {
+    /* Subclasses of protocol error type frames */
     switch (protError)
     {
     case CAN_ERR_PROT_UNSPEC:
@@ -451,6 +405,7 @@ void CANHandler::getProtErrorTypeDesc(unsigned char protError, std::string &erro
 
 void CANHandler::getProtErrorLocDesc(unsigned char protError, std::string &errorMessage)
 {
+    /* Subclasses of protocol error location frames */
     switch (protError)
     {
     case CAN_ERR_PROT_LOC_UNSPEC:
@@ -542,6 +497,7 @@ void CANHandler::getProtErrorLocDesc(unsigned char protError, std::string &error
 
 void CANHandler::getTransceiverStatus(unsigned char statusError, std::string &errorMessage)
 {
+    /* Subclasses of transceiver error frames */
     switch (statusError)
     {
     case CAN_ERR_TRX_UNSPEC:
@@ -591,8 +547,6 @@ void CANHandler::getTransceiverStatus(unsigned char statusError, std::string &er
     return;
 }
 
-/* Analyze type of frame received */
-
 void CANHandler::frameAnalyzer(const struct can_frame &frame)
 {
     Serial inform;
@@ -626,7 +580,6 @@ void CANHandler::frameAnalyzer(const struct can_frame &frame)
         {
             errorMsg += "Controller problems - ";
             getCtrlErrorDesc(frame.data[1], errorMsg);
-            /* Bus off check in case if BUS off happened also  */
             if (frame.can_id & CAN_ERR_BUSOFF)
             {
                 errorMsg += "- BUS OFF";
@@ -726,6 +679,7 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
         {
             std::unique_lock<std::mutex> lock(m);
             initCAN(serialRequest["bitrate"]);
+            sleep(2);
             CANHandler s("can0");
             socket = move(s);
             cv.notify_one();
@@ -754,21 +708,6 @@ void CANHandler::processRequest(json &serialRequest, CANHandler &socket, struct 
         readOp.canRead();
     }
     syslog(LOG_DEBUG, "Exiting processRequest function call.");
-}
-
-void CANHandler::displayFrame(const struct can_frame &frame)
-{
-    std::cout << std::left << std::setw(15) << "interface:"
-              << std::setw(10) << "can0" << std::setw(15) << "CAN ID:"
-              << std::setw(10) << std::hex << std::showbase << frame.can_id
-              << std::setw(20) << "data length:"
-              << std::setw(5) << std::dec << std::showbase << (int)frame.can_dlc << "data: ";
-
-    for (int i = 0; i < frame.can_dlc; ++i)
-    {
-        std::cout << std::hex << std::showbase << std::setw(2) << (int)frame.data[i] << " ";
-    }
-    std::cout << std::endl;
 }
 void CANHandler::blinkLed(int led, int time)
 {

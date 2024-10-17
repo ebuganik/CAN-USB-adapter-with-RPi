@@ -1,7 +1,6 @@
 #include "serial.h"
 #include <unistd.h>
 #include <iostream>
-#include <stdexcept>
 #include <sstream>
 #include <iomanip>
 #include <ctime>
@@ -9,14 +8,6 @@
 #include <fstream>
 #include <fcntl.h>
 #include <linux/can/raw.h>
-
-#define START_MARKER '{'
-#define END_MARKER '}'
-#define BUFFER_SIZE 200
-
-using namespace std;
-
-/* Constructor of class Serial used to initialize serial communication */
 
 Serial::Serial()
 {
@@ -27,7 +18,7 @@ Serial::Serial()
         syslog(LOG_ERR, "Failed to open serial port: %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
-    /* Get the current options of the port and set baudrates to 115200 */
+    /* Get current options of the port and set input and output baudrates to 115200 */
     tcgetattr(m_serialfd, &m_config);
     cfsetispeed(&m_config, B115200);
     cfsetospeed(&m_config, B115200);
@@ -42,13 +33,17 @@ Serial::Serial()
     /* Receiver enabled and local mode set */
     m_config.c_cflag &= ~CRTSCTS;
     m_config.c_cflag |= CREAD | CLOCAL;
+
     /* Software control disabled */
     /* Raw input (non-canonical), with no output processing */
     m_config.c_iflag &= ~(IXON | IXOFF | IXANY);
     m_config.c_iflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
     m_config.c_oflag &= ~OPOST;
 
+    /* Minimum number of characters for non-canonical read, wait until at least 10 characters are received */
     m_config.c_cc[VMIN] = 10;
+
+    /* No timeout, wait indefinitely */
     m_config.c_cc[VTIME] = 0;
 
     if (tcsetattr(m_serialfd, TCSANOW, &m_config) < 0)
@@ -56,6 +51,7 @@ Serial::Serial()
         syslog(LOG_ERR, "Unable to set serial configuration %s", strerror(errno));
         exit(EXIT_FAILURE);
     }
+    /* Flushes the input and output buffers of the serial port */
     tcflush(m_serialfd, TCIFLUSH);
 }
 
@@ -64,8 +60,6 @@ Serial::~Serial()
     syslog(LOG_DEBUG, "Calling Serial class destructor.");
     close(m_serialfd);
 }
-
-/* Function to pack received frames from CAN bus into JSON strings and send them via serial */
 
 void Serial::sendReadFrame(const struct can_frame &receivedFrame)
 {
@@ -90,7 +84,6 @@ void Serial::sendReadFrame(const struct can_frame &receivedFrame)
     std::string jsonString = packedFrame.dump();
     serialSend(jsonString);
 }
-/* Function to pack status messages into JSON strings and send send them via serial */
 
 void Serial::sendStatusMessage(const StatusCode &code, const std::string &message)
 {
@@ -101,8 +94,6 @@ void Serial::sendStatusMessage(const StatusCode &code, const std::string &messag
     std::string jsonString = packedStatus.dump();
     serialSend(jsonString);
 }
-
-/* Function to send read frame from CAN bus or status message to serial */
 
 void Serial::serialSend(const std::string statusMessage)
 {
@@ -116,7 +107,6 @@ void Serial::serialSend(const std::string statusMessage)
         syslog(LOG_INFO, "Message sent to serial port: %s", pMessage);
 }
 
-/* Function to read requests from serial port */
 void Serial::serialReceive(json &serialRequest)
 {
     syslog(LOG_DEBUG, "Started serialReceive function call");
@@ -153,7 +143,7 @@ void Serial::serialReceive(json &serialRequest)
                 if (result)
                 {
                     serialRequest = json::parse(reqString);
-                    {   /* Lock mutex */
+                    { /* Lock mutex */
                         std::unique_lock<std::mutex> lock(m);
                         /* Set global variable */
                         dataReady = true;
@@ -167,6 +157,7 @@ void Serial::serialReceive(json &serialRequest)
                 }
                 jsonStarted = 0;
                 bufPos = 0;
+
                 /* Initialize integer array with zeros */
                 memset((void *)buf, '0', sizeof(buf));
             }

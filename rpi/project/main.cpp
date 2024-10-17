@@ -1,12 +1,9 @@
 #include "serial.h"
 #include "canhandler.h"
 #include <unistd.h>
-#include <iostream>
 #include <iomanip>
 #include <time.h>
 #include <thread>
-#include <atomic>
-#include <sys/syslog.h>
 
 std::atomic<bool> isRunning(true);
 const char *interfaceName;
@@ -29,7 +26,10 @@ int main(int argc, char *argv[])
     wiringPiSetupGpio();
     pinMode(17, OUTPUT);
     Serial serial;
-    if (argc > 1) { interfaceName = argv[1];}
+    if (argc > 1)
+    {
+        interfaceName = argv[1];
+    }
     initCAN(200000);
     CANHandler socket(interfaceName);
     struct can_frame sendFrame = {0};
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
         serial.serialReceive(serialRequest);
         socket.processRequest(serialRequest, socket, sendFrame, &cycleTime);
         syslog(LOG_INFO, "Thread sleeping time. Read new request or terminate application.");
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
     }
     sleep(1);
     canThread.join();
