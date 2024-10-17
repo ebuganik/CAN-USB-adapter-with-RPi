@@ -62,7 +62,7 @@ dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 r
 ```
 **Note:** After applying any changes to the system files, emember to run `sudo reboot` to ensure that all modifications are properly saved and take effect.
 ### Raspberry Pi and Hardware connections
-According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus via the MCP2551 transceiver. Additionally, a suitable solution is required to establish serial communication between the Raspberry Pi and the PC. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. 
+According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus over the MCP2551 transceiver. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. 
 
 <p align="center">
 <img src = "https://github.com/user-attachments/assets/75d73bf0-53fb-4369-afc7-87fa7d1f9be5" width = "800, height = "420">
@@ -74,7 +74,9 @@ The second image is an electrical schematic showing the connections between the 
 <img src="https://github.com/user-attachments/assets/89ee8a62-a2a0-4fe5-81f6-89a90ab2a4cf" width = "800", height = "430">
 </p>
 
-Following image illustrates the basic idea of master-slave principle in SPI communication. Both peripherals are connected in parallel on the same SPI bus (MOSI, MISO, SCLK), with each device having its own unique CE line (CE0, CE1). This implies that, along with the previously mentioned modifications to the `/boot/config.txt` file, another MCP2515 will be connected as an additional peripheral. This peripheral will use a different CS pin (`GPIO 7`, as `SPIO CE1`), enabling the Raspberry Pi to communicate with multiple CAN networks, thus expanding its capacity to work with different CAN communication channels.
+Additionally, to establish a serial connection with the PC, the `GPIO 14/TX` of the Raspberry Pi must be connected to the RX pin of the adapter, the `GPIO 15/RX` of the Raspberry Pi to the TX pin of the adapter, and `GND` to GND.
+
+Following image illustrates the basic idea of master-slave principle in SPI communication. Both peripherals are connected in parallel on the same SPI bus (MOSI, MISO, SCLK), with each device having its own unique CE line (CE0, CE1). This implies that, along with the previously mentioned modifications to the `/boot/config.txt` file, another MCP2515 will be connected as an additional peripheral. This peripheral will use a different CS pin (`GPIO 7`, as `SPIO CE1`), enabling the Raspberry Pi to communicate with multiple CAN networks.
 
 <p align="center">
 <img src ="https://github.com/user-attachments/assets/3c9c87ea-3776-41a9-9010-f8b97f8f4161" width = "550, height = "250">
