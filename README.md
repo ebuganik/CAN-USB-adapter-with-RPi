@@ -4,7 +4,8 @@
 This repository is part of an undergraduate thesis project at the Faculty of Electrical Engineering in Banja Luka. The project involves developing a device similar to PCAN-USB using a Raspberry Pi. Requests are sent from the PC via a Python application to the Raspberry Pi, where they are processed by a C++ application. These requests initiate operations such as reading from the CAN bus or sending data to CAN bus. The processed CAN messages are then transmitted back to the PC through an interface like USB and displayed in the Python application. The block diagram below illustrates the core concept of the project.
 
 <p align="center">
-<img src="https://github.com/user-attachments/assets/3c8a1fa4-6ee8-49b5-8495-ba2b1135ac24"width = "750", height = "400">
+<img src="https://github.com/user-attachments/assets/3c8a1fa4-6ee8-49b5-8495-ba2b1135ac24" alt="Opis slike" title="Block diagram" width = "750", height = "400">
+</p>
 
 ### Requirements
 - Raspberry Pi 3B target platform with pre-installed Raspbian operating system and internet connectivity
@@ -18,6 +19,7 @@ This repository is part of an undergraduate thesis project at the Faculty of Ele
   -  Pull-up resistors: 4.7 kΩ
   -  Terminal resistor: 120 Ω
   -  Capacitors of 0.1 uF for stabilizing the power supply and of 22 pF for the quartz crystal on the microcontroller's oscillator
+  -  16 MHz crystal oscillator
   - Wires for connections
     
 - USB to TTL Serial 3.3V Adapter Cable for serial communication
@@ -60,20 +62,23 @@ dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 r
 ```
 **Note:** After applying any changes to the system files, emember to run `sudo reboot` to ensure that all modifications are properly saved and take effect.
 ### Raspberry Pi and Hardware connections
-According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus via the MCP2515 transceiver. Additionally, a suitable solution is required to establish serial communication between the Raspberry Pi and the PC. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. The following image highlights the Raspberry Pi pins used for this project's specific connections.
-<p align="center">
-<img src = "https://github.com/user-attachments/assets/75d73bf0-53fb-4369-afc7-87fa7d1f9be5" width = "750, height = "250">
-  
-| Raspberry Pi Pin | USB to TTL Serial 3.3V Adapter Cable |   
-| :------: | :------: | 
-| GPIO 14 (TXD) | RXD| 
-| GPIO 15 (RXD) | TXD| 
-| Ground | GND |
+According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus via the MCP2551 transceiver. Additionally, a suitable solution is required to establish serial communication between the Raspberry Pi and the PC. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. 
 
-Following image illustrates the basic idea of master-slave principle in SPI communication. Both peripherals are connected in parallel on the same SPI bus (MOSI, MISO, SCLK), with each device having its own unique CE line (CE0, CE1). This allows the Raspberry Pi to select which device to communicate with, enabling multiple CAN communication channels on the Raspberry Pi to interact with different CAN networks simultaneously.
+<p align="center">
+<img src = "https://github.com/user-attachments/assets/75d73bf0-53fb-4369-afc7-87fa7d1f9be5" width = "800, height = "420">
+</p>
+
+The second image is an electrical schematic showing the connections between the MCP2515 and MCP2551. The pins of the MCP2515 are directly connected to the Raspberry Pi's pins through the SPI interface. The MCP2515 operates at 3.3 V to match the Raspberry Pi's logic level, ensuring proper communication. In contrast, the MCP2551 uses a 5 V supply, as it interfaces with the CAN bus, which typically operates at higher voltages. For testing this module, a PCAN device is used, with its CANH and CANL lines, as well as GND, connected to the CANH, CANL, and GND outputs of the MCP2551 transceiver, respectively. This setup allows proper communication between the Raspberry Pi and the PCAN, facilitating CAN bus testing.
+ 
+<p align="center">
+<img src="https://github.com/user-attachments/assets/89ee8a62-a2a0-4fe5-81f6-89a90ab2a4cf" width = "800", height = "430">
+</p>
+
+Following image illustrates the basic idea of master-slave principle in SPI communication. Both peripherals are connected in parallel on the same SPI bus (MOSI, MISO, SCLK), with each device having its own unique CE line (CE0, CE1). This implies that, along with the previously mentioned modifications to the `/boot/config.txt` file, another MCP2515 will be connected as an additional peripheral. This peripheral will use a different CS pin (`GPIO 7`, as `SPIO CE1`), enabling the Raspberry Pi to communicate with multiple CAN networks, thus expanding its capacity to work with different CAN communication channels.
 
 <p align="center">
 <img src ="https://github.com/user-attachments/assets/3c9c87ea-3776-41a9-9010-f8b97f8f4161" width = "550, height = "250">
+</p>
 
 ## Required installations and Launching the Applications
 The C++ application can be compiled directly on the Raspberry Pi device. For the purposes of this project, the code was edited using Visual Studio Code, which allows for connection to the Raspberry Pi via SSH. This enables remote development and easy management of files on the Raspberry Pi. While it is also possible to perform the compilation using a `Makefile`, it is essential to first verify that the necessary `g++` compiler is available.
@@ -114,7 +119,7 @@ make run CAN_INTERFACE_NAME=can1
 ```
 After successful compilation, the C++ application will run on the Raspberry Pi, enabling it to interact with the CAN bus after first write/read request from serial port. 
 ### PCAN View 
-For testing purposes, a PCAN-USB device is used as a node connected to CAN bus CAN-H and CAN-L to read sent requests from serial or to send new one to serial. If device is available, download the latest version of PEAKCAN View application for Windows from [PEAK System](https://www.peak-system.com/?&L=1) and run the installer. Start the PEAKCAN View, configure the CAN interface and intended bitrate to start communication.
+As previously mentioned, a PCAN-USB device is used as a node connected to CAN bus to read sent requests from serial or to send a new one to serial. If device is available, download the latest version of PEAKCAN View application for Windows from [PEAK System](https://www.peak-system.com/?&L=1) and run the installer. Start the PEAKCAN View, configure the CAN interface and intended bitrate to start communication.
 
 ### Windows (Python Application)
 The Python application, located in the `windows` folder, communicates with the Raspberry Pi via a serial connection. This application requires the *pyserial* library. To set it up and run it, follow these steps:
