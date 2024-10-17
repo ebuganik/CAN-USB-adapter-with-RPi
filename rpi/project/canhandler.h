@@ -61,13 +61,13 @@ public:
 
     /**
      * @brief Move constructor.
-     * @param other Other CANHandler object.
+     * @param[in] other Other CANHandler object.
      */
     CANHandler(CANHandler &&other);
 
     /**
      * @brief Move assignment operator.
-     * @param other Other CANHandler object.
+     * @param[in] other Other CANHandler object.
      * @return Reference to this object.
      */
     CANHandler &operator=(CANHandler &&other) noexcept;
@@ -125,7 +125,7 @@ public:
 
     /**
      * @brief Enable CAN filters.
-     * @param filterPair Vector of filter pairs.
+     * @param[in] filterPair Vector of filter pairs.
      */
     void canFilterEnable(std::vector<std::pair<int, int>> &filterPair);
 
@@ -136,29 +136,29 @@ public:
 
     /**
      * @brief Get control error description.
-     * @param ctrlError Control error code (passing received/read frame's payload byte 1).
-     * @param errorMessage Error message string.
+     * @param[in] ctrlError Control error code (passing received/read frame's payload byte 1).
+     * @param[in] errorMessage Error message string.
      */
     void getCtrlErrorDesc(unsigned char ctrlError, std::string &errorMessage);
 
     /**
      * @brief Get protocol error type description.
-     * @param protError Protocol error code (passing received/read frame's payload byte 2).
-     * @param errorMessage Error message string.
+     * @param[in] protError Protocol error code (passing received/read frame's payload byte 2).
+     * @param[in] errorMessage Error message string.
      */
     void getProtErrorTypeDesc(unsigned char protError, std::string &errorMessage);
 
     /**
      * @brief Get protocol error location description.
-     * @param protError Protocol error code (passing received/read frame's payload byte 3)
-     * @param errorMessage Error message string.
+     * @param[in] protError Protocol error code (passing received/read frame's payload byte 3)
+     * @param[in] errorMessage Error message string.
      */
     void getProtErrorLocDesc(unsigned char protError, std::string &errorMessage);
 
     /**
      * @brief Get transceiver status description.
-     * @param statusError Status error code (passing received frame's payload byte 4).
-     * @param errorMessage Error message string.
+     * @param[in] statusError Status error code (passing received frame's payload byte 4).
+     * @param[in] errorMessage Error message string.
      */
     void getTransceiverStatus(unsigned char statusError, std::string &errorMessage);
 
@@ -187,8 +187,8 @@ public:
 
     /**
      * @brief Blink LED function.
-     * @param led GPIO pin number.
-     * @param time Blink duration in milliseconds.
+     * @param[in] led GPIO pin number.
+     * @param[in] time Blink duration in milliseconds.
      */
     void blinkLed(int led, int time);
 };
