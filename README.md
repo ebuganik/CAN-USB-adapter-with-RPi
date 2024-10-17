@@ -61,7 +61,7 @@ It's also helpful to have the serial console configured for testing serial commu
 dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait 
 ```
 **Note:** After applying any changes to the system files, emember to run `sudo reboot` to ensure that all modifications are properly saved and take effect.
-### Raspberry Pi and Hardware connections
+### Raspberry Pi Pins and Hardware connections
 According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus over the MCP2551 transceiver. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. 
 
 <p align="center">
