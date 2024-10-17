@@ -48,7 +48,7 @@ dtoverlay=mcp2515-can0,oscillator=16000000,spimaxfrequency=1000000,interrupt=25
 ```
 **Note:** Linux kernel version can be checked with command `uname -r`.
 
-Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we could have `can0` and `can1`. After making changes to the `/boot/config.txt` file, it is necessary to execute `sudo reboot` to apply the changes. Connections between the components must be established, what will be explained in the following sections. Afterwards, it is useful to check if MCP2515 CAN controller is succesfully initialized, especially if we plan to work with both channels:
+Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we could have `can0` and `can1`. Connections between the components must be established, what will be explained in the following sections. Afterwards, it is useful to check if MCP2515 CAN controller is succesfully initialized, especially if we plan to work with both channels:
 ```
 dmesg | grep can
 [   39.846066] mcp251x spi0.1 can0: MCP2515 successfully initialized.
@@ -58,6 +58,7 @@ It's also helpful to have the serial console configured for testing serial commu
 ```
 dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait 
 ```
+**Note:** After applying any changes to the system files, emember to run `sudo reboot` to ensure that all modifications are properly saved and take effect.
 ### Raspberry Pi and Hardware connections
 According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus via the MCP2515 transceiver. Additionally, a suitable solution is required to establish serial communication between the Raspberry Pi and the PC. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. The following image highlights the Raspberry Pi pins used for this project's specific connections.
 <p align="center">
@@ -75,7 +76,7 @@ Following image illustrates the basic idea of master-slave principle in SPI comm
 <img src ="https://github.com/user-attachments/assets/3c9c87ea-3776-41a9-9010-f8b97f8f4161" width = "550, height = "250">
 
 ## Required installations and Launching the Applications
-The C++ application can be compiled directly on the Raspberry Pi device. For the purposes of this project, the code was edited using Visual Studio Code, which allows for connection to the Raspberry Pi via SSH. This enables remote development and easy management of files on the Raspberry Pi. While it is also possible to perform the compilation using a Makefile, it is essential to first verify that the necessary `g++` compiler is available.
+The C++ application can be compiled directly on the Raspberry Pi device. For the purposes of this project, the code was edited using Visual Studio Code, which allows for connection to the Raspberry Pi via SSH. This enables remote development and easy management of files on the Raspberry Pi. While it is also possible to perform the compilation using a `Makefile`, it is essential to first verify that the necessary `g++` compiler is available.
 
 Ensure your Raspberry Pi is up-to-date with the latest software and security patches.
 ```
