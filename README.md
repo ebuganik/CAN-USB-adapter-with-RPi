@@ -76,6 +76,8 @@ The second image is an electrical schematic showing the connections between the 
 
 Additionally, to establish a serial connection with the PC, the `GPIO 14/TX` of the Raspberry Pi must be connected to the RX pin of the adapter, the `GPIO 15/RX` of the Raspberry Pi to the TX pin of the adapter, and `GND` to GND.
 
+**Note:** After connecting serial cable pins to Raspberry Pi, name of the new available tty device can be found using `ls /dev/tty*` command, where our `ttyS0` should be found. Serial device name must be known to be included in C++ application file `serial.cpp`.
+
 Following image illustrates the basic idea of master-slave principle in SPI communication. Both peripherals are connected in parallel on the same SPI bus (MOSI, MISO, SCLK), with each device having its own unique CE line (CE0, CE1). This implies that, along with the previously mentioned modifications to the `/boot/config.txt` file, another MCP2515 will be connected as an additional peripheral. This peripheral will use a different CS pin (`GPIO 7`, as `SPIO CE1`), enabling the Raspberry Pi to communicate with multiple CAN networks.
 
 <p align="center">
