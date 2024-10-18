@@ -71,7 +71,7 @@ According to the conceptual block diagram, the Raspberry Pi must be connected to
 The second image is an electrical schematic showing the connections between the MCP2515 and MCP2551. The pins of the MCP2515 are directly connected to the Raspberry Pi's pins through the SPI interface. The MCP2515 operates at 3.3 V to match the Raspberry Pi's logic level, ensuring proper communication. In contrast, the MCP2551 uses a 5 V supply, as it interfaces with the CAN bus, which typically operates at higher voltages. For testing this module, a PCAN device is used, with its CANH and CANL lines, as well as GND, connected to the CANH, CANL, and GND outputs of the MCP2551 transceiver, respectively. This setup allows proper communication between the Raspberry Pi and the PCAN, facilitating CAN bus testing.
  
 <p align="center">
-<img src="https://github.com/user-attachments/assets/89ee8a62-a2a0-4fe5-81f6-89a90ab2a4cf" width = "800", height = "430">
+<img src="https://github.com/user-attachments/assets/68f98cba-908a-4d11-a436-6f948d4dfd12" width = "800", height = "440">
 </p>
 
 Additionally, to establish a serial connection with the PC, the `GPIO 14/TX` of the Raspberry Pi must be connected to the RX pin of the adapter, the `GPIO 15/RX` of the Raspberry Pi to the TX pin of the adapter, and `GND` to GND.
