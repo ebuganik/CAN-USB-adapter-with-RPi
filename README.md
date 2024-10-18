@@ -4,7 +4,7 @@
 This repository is part of an undergraduate thesis project at the Faculty of Electrical Engineering in Banja Luka. The project involves developing a device similar to PCAN-USB using a Raspberry Pi. Requests are sent from the PC via a Python application to the Raspberry Pi, where they are processed by a C++ application. These requests initiate operations such as reading from the CAN bus or sending data to CAN bus. The processed CAN messages are then transmitted back to the PC through an interface like USB and displayed in the Python application. The block diagram below illustrates the core concept of the project.
 
 <p align="center">
-<img src="https://github.com/user-attachments/assets/3c8a1fa4-6ee8-49b5-8495-ba2b1135ac24" alt="Opis slike" title="Block diagram" width = "750", height = "400">
+<img src="https://github.com/user-attachments/assets/e9873fb9-9bb9-489e-8220-e060df6bfe74" width = "750", height = "400">
 </p>
 
 ### Requirements
@@ -36,7 +36,7 @@ static domain_name_servers=<DNSIP>
 ```
 **Note:** Keywords enclosed in angle brackets (<>) should be replaced with appropriate values for your network configuration. This ensures that Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server. In this particular case ROUTERIP and DNSIP were set to USB to Ethernet Adapter IP address, NETWORK to `eth0` and Raspberry Pi's STATICIP was assigned to the first IP address in the ROUTERIP network.
 
-To use the CAN interface on the Raspberry Pi platform it is necessary to provide an appropriate hardware module that is connected to one of the interfaces offered by this platform. This project assignment involves designing the module using MCP2515 CAN controller and the MCP2551 CAN transceiver, which enable the connection of a microcontroller to the CAN network via the interface.
+To use the CAN interface on the Raspberry Pi platform it is necessary to provide an appropriate hardware module that is connected to one of the interfaces offered by this platform. This project assignment involves designing the module using MCP2515 CAN controller and the MCP2551 CAN transceiver, which enable the connection of a microcontroller to the CAN network via the interface. Considering the Raspberry Pi’s support for multiple interfaces, the SPI interface can be utilized to connect with the MCP2515 and establish targeted connection.
 
 The MCP2515 CAN controller is already supported in the *Linux* operating system through a driver module. To ensure this module loads at system startup on the Raspberry Pi platform, it is necessary to modify the system's hardware configuration by specifying the appropriate parameters in the `/boot/config.txt` file. Therefore, this file should be edited using following command:
 ```
@@ -50,7 +50,7 @@ dtoverlay=mcp2515-can0,oscillator=16000000,spimaxfrequency=1000000,interrupt=25
 ```
 **Note:** Linux kernel version can be checked with command `uname -r`.
 
-Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we could have `can0` and `can1`. Connections between the components must be established, what will be explained in the following sections. Afterwards, it is useful to check if MCP2515 CAN controller is succesfully initialized, especially if we plan to work with both channels:
+Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we could have `can0` and `can1` to communicate over CAN ( connections between the components will be explained later). Afterwards, it is useful to check if MCP2515 CAN controller is succesfully initialized, especially if we plan to work with both channels:
 ```
 dmesg | grep can
 [   39.846066] mcp251x spi0.1 can0: MCP2515 successfully initialized.
@@ -60,7 +60,7 @@ It's also helpful to have the serial console configured for testing serial commu
 ```
 dwc_otg.lpm_enable=0 console=tty1 console=serial0, 115200, root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait 
 ```
-**Note:** After applying any changes to the system files, emember to run `sudo reboot` to ensure that all modifications are properly saved and take effect.
+**Note:** After applying any changes to the system files, remember to run `sudo reboot` to ensure that all modifications are properly saved and take effect.
 ### Raspberry Pi Pins and Hardware connections
 According to the conceptual block diagram, the Raspberry Pi must be connected to the MCP2515 microcontroller to interface with the CAN bus over the MCP2551 transceiver. The next step involves reviewing the Raspberry Pi pins that are compatible with the protocols outlined in the diagram. 
 
