@@ -16,7 +16,7 @@ This repository is part of an undergraduate thesis project at the Faculty of Ele
   -  MCP2515
   -  MCP2551
   -  Resistors for voltage division: 10 kΩ and 22 kΩ
-  -  Pull-up resistors: 4.7 kΩ
+  -  Pull-up/down resistors: 4.7 kΩ
   -  Terminal resistor: 120 Ω
   -  Capacitors of 0.1 uF for stabilizing the power supply and of 22 pF for the quartz crystal on the microcontroller's oscillator
   -  16 MHz crystal oscillator
