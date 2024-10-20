@@ -4,7 +4,7 @@
 This repository is part of an undergraduate thesis project at the Faculty of Electrical Engineering in Banja Luka. The project involves developing a device similar to PCAN-USB using a Raspberry Pi. Requests are sent from the PC via a Python application to the Raspberry Pi, where they are processed by a C++ application. These requests initiate operations such as reading from the CAN bus or sending data to CAN bus. The processed CAN messages are then transmitted back to the PC through an interface like USB and displayed in the Python application. The block diagram below illustrates the core concept of the project.
 
 <p align="center">
-<img src="https://github.com/user-attachments/assets/e9873fb9-9bb9-489e-8220-e060df6bfe74" width = "750", height = "400">
+<img src="https://github.com/user-attachments/assets/75e93672-d688-4a24-9a60-61f3846bc126" width = "750", height = "400">
 </p>
 
 ### Requirements
