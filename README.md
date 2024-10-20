@@ -148,9 +148,13 @@ python main.py --port COM11 --baudrate 19200
 ```
 ## Dependencies
 List of required libraries:
-- [libsocketcan](https://github.com/linux-can/libsocketcan)
-- [wiringPi](https://github.com/WiringPi/WiringPi)
-- [nlohmann/json](https://github.com/nlohmann/json)
-- [pySerial](https://pyserial.readthedocs.io/en/latest/index.html)
+- [**libsocketcan**](https://github.com/linux-can/libsocketcan)
+  - A library that provides access to the SocketCAN interface, enabling communication with CAN devices on Linux.
+- [**wiringPi**](https://github.com/WiringPi/WiringPi)
+  - A GPIO library for the Raspberry Pi that allows easy control of the GPIO pins, suitable for interfacing with hardware.
+- [**nlohmann/json**](https://github.com/nlohmann/json)
+   - A JSON library for C++ that provides a simple and intuitive interface for working with JSON data.
+- [**pySerial**](https://pyserial.readthedocs.io/en/latest/index.html)
+  - A Python library for serial communication, allowing the sending and receiving of data through serial ports.
 
 
