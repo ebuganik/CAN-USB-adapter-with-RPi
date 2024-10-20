@@ -11,7 +11,7 @@ This repository is part of an undergraduate thesis project at the Faculty of Ele
 - Raspberry Pi 3B target platform with pre-installed Raspbian operating system and internet connectivity
 - Power adapter for Raspberry Pi
 - USB to Ethernet Adapter
-- Breadboard for implementing the electrical circuit.
+- Breadboard for implementing the electrical circuit
 - Additional electronic components:
   -  MCP2515
   -  MCP2551
@@ -23,7 +23,7 @@ This repository is part of an undergraduate thesis project at the Faculty of Ele
   - Wires for connections
     
 - USB to TTL Serial 3.3V Adapter Cable for serial communication
-- PCAN-USB (optional)
+- PCAN-USB (optional, in this case used for testing purpose to verify sending/receiving frames)
 
 ## Raspberry Pi and Hardware Interface Setup
 ### Initial setup of Raspberry Pi 
@@ -34,7 +34,7 @@ static ip_address=<STATICIP>/24
 static routers=<ROUTERIP>
 static domain_name_servers=<DNSIP>
 ```
-**Note:** Keywords enclosed in angle brackets (<>) should be replaced with appropriate values for your network configuration. This ensures that Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server. In this particular case ROUTERIP and DNSIP were set to USB to Ethernet Adapter IP address, NETWORK to `eth0` and Raspberry Pi's STATICIP was assigned to the first IP address in the ROUTERIP network.
+**Note:** Keywords enclosed in angle brackets (<>) should be replaced with appropriate values for your network configuration. This ensures that Raspberry Pi has a static IP address and can properly route traffic through the specified router and DNS server. In this particular case `ROUTERIP` and `DNSIP` were set to USB to Ethernet Adapter IP address, NETWORK to `eth0` and Raspberry Pi's `STATICIP` was assigned to the first IP address in the `ROUTERIP` network.
 
 To use the CAN interface on the Raspberry Pi platform it is necessary to provide an appropriate hardware module that is connected to one of the interfaces offered by this platform. This project assignment involves designing the module using MCP2515 CAN controller and the MCP2551 CAN transceiver, which enable the connection of a microcontroller to the CAN network via the interface. Considering the Raspberry Pi’s support for multiple interfaces, the SPI interface can be utilized to connect with the MCP2515 and establish targeted connection.
 
@@ -50,7 +50,7 @@ dtoverlay=mcp2515-can0,oscillator=16000000,spimaxfrequency=1000000,interrupt=25
 ```
 **Note:** Linux kernel version can be checked with command `uname -r`.
 
-Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we could have `can0` and `can1` to communicate over CAN ( connections between the components will be explained later). Afterwards, it is useful to check if MCP2515 CAN controller is succesfully initialized, especially if we plan to work with both channels:
+Just like with SPI, to enable UART upon booting Raspberry Pi, add `enable_uart=1` at the end of the same file. The commented line of code should be uncommented if we want to enable more than one communication channel, in this case, we could have `can0` and `can1` to communicate over CAN ( connections between the components will be explained later ). Afterwards, it is useful to check if MCP2515 CAN controller is succesfully initialized, especially if we plan to work with both channels:
 ```
 dmesg | grep can
 [   39.846066] mcp251x spi0.1 can0: MCP2515 successfully initialized.
@@ -111,10 +111,10 @@ cd WiringPi
 ./build
 ```
 
-Once the library is installed, navigate to the `rpi/project` folder and use the `Makefile` to compile the application:
+Once the library is installed, navigate to the `rpi/project` folder and use the `Makefile` to compile application using next command:
 ```
 cd rpi/project
-make run
+make
 ```
 The Makefile will manage the compilation and linking of the `libsocketcan` and `wiringpi` libraries along with any additional dependencies, taking `can0` as the CAN interface name by default. If an additional SPI device (MCP2515) is connected to the Raspberry Pi's SPI0 pins as previously explained, after uncommenting the specified line in the `/boot/config.txt` file (don't forget to `sudo reboot` again), you can invoke the make command as follows:
 
@@ -122,8 +122,10 @@ The Makefile will manage the compilation and linking of the `libsocketcan` and `
 make run CAN_INTERFACE_NAME=can1
 ```
 After successful compilation, the C++ application will run on the Raspberry Pi, enabling it to interact with the CAN bus after first write/read request from serial port. 
-### PCAN View 
-As previously mentioned, a PCAN-USB device is used as a node connected to CAN bus to read sent requests from serial or to send a new one to serial. If device is available, download the latest version of PEAKCAN View application for Windows from [PEAK System](https://www.peak-system.com/?&L=1) and run the installer. Start the PEAKCAN View, configure the CAN interface and intended bitrate to start communication.
+### PCAN View (optional)
+The PCAN-View application was used for testing message transmission and reception on the CAN bus. If you have a PCAN-USB device available, you can download the latest version of the PEAKCAN View application for Windows from PEAK System [PEAK System](https://www.peak-system.com/?&L=1) and run the installer. Start the PEAKCAN View, configure the CAN interface and intended bitrate to start communication.
+
+**Note:** This step is optional and is provided as a convenience for users with access to a PCAN-USB device. The application was used due to the availability of the device during development.
 
 ### Windows (Python Application)
 The Python application, located in the `windows` folder, communicates with the Raspberry Pi via a serial connection. This application requires the *pyserial* library. To set it up and run it, follow these steps:
