@@ -146,6 +146,11 @@ Executing the Python application means that the default parameters for configuri
 ```
 python main.py --port COM11 --baudrate 19200
 ```
-
+## Dependencies
+List of required libraries:
+- [libsocketcan](https://github.com/linux-can/libsocketcan)
+- [wiringPi](https://github.com/WiringPi/WiringPi)
+- [nlohmann/json](https://github.com/nlohmann/json)
+- [pySerial](https://pyserial.readthedocs.io/en/latest/index.html)
 
 
