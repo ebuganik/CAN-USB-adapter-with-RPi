@@ -14,7 +14,7 @@
 #include <vector>
 #include <utility>
 #include "serial.h"
-#include "../ext_lib/WiringPi/wiringPi/wiringPi.h"
+#include <wiringPi.h>
 
 /**
  * @brief Flag to track if write request with cycle_ms parameter is received.

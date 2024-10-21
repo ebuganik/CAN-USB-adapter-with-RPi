@@ -1,7 +1,7 @@
 TARGET = main
 CXX = g++
-LIBS = -lsocketcan -L../ext_lib/WiringPi/wiringPi -lwiringPi
-CXXFLAGS = -Wall -g -DCAN_INTERFACE_NAME="$(CAN_INTERFACE_NAME)"
+LIBS = -lsocketcan -L../ext_lib/rpi_lib/WiringPi/wiringPi -lwiringPi
+CXXFLAGS = -Wall -g -I../ext_lib/json_lib/single_include -I../ext_lib/rpi_lib/wiringPi/wiringPi
 THREAD_FLAGS = -pthread
 SRCS = main.cpp canhandler.cpp serial.cpp
 OBJS = $(SRCS:.cpp=.o)
@@ -11,6 +11,9 @@ SUDO_SET_CAPS = sudo setcap cap_net_raw,cap_net_admin+ep ${TARGET}
 
 # If CAN interface name not given, use can0 by default
 CAN_INTERFACE_NAME ?= can0
+
+# Add another CAN interface name if necessary
+CXXFLAGS+=-DCAN_INTERFACE_NAME="$(CAN_INTERFACE_NAME)"
 
 all: $(TARGET)
 

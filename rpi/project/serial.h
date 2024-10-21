@@ -10,10 +10,11 @@
 #include <termios.h>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
-#include "../ext_lib/json.hpp"
+#include "nlohmann/json.hpp"
 #include <future>
 #include <atomic>
 #include <csignal>
