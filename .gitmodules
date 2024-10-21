@@ -1,0 +1,6 @@
+[submodule "rpi/ext_lib/json_lib"]
+	path = rpi/ext_lib/json_lib
+	url = https://github.com/nlohmann/json.git
+[submodule "rpi/ext_lib/rpi_lib"]
+	path = rpi/ext_lib/rpi_lib
+	url = https://github.com/WiringPi/WiringPi.git
