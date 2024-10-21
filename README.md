@@ -24,7 +24,21 @@ This repository is part of an undergraduate thesis project at the Faculty of Ele
     
 - USB to TTL Serial 3.3V Adapter Cable for serial communication
 - PCAN-USB (optional, in this case used for testing purpose to verify sending/receiving frames)
-
+## Cloning the repository
+This repository includes submodules for *WiringPi* and *nlohmann/json* libraries. To ensure you get all the necessary components, follow this step to clone the repository along with its submodules:
+```
+ git clone --recurse-submodules --remote-submodules https://github.com/ebuganik/CAN-USB-adapter-with-RPi.git
+```
+Alternatively, if you are using *Git* version 2.13 or later, you can use the following command for parallel cloning:
+```
+git clone --recurse-submodules -j8 https://github.com/ebuganik/CAN-USB-adapter-with-RPi.git
+```
+For already cloned repository or older Git versions, use:
+```
+git clone https://github.com/ebuganik/CAN-USB-adapter-with-RPi.git
+cd CAN-USB-adapter-with-RPi
+git submodule update --init --recursive
+```
 ## Raspberry Pi and Hardware Interface Setup
 ### Initial setup of Raspberry Pi 
 Since the Ethernet adapter has its own IP address, it was also necessary to set the IP address of the Raspberry Pi device in the `/etc/dhcpcd.conf` file with `sudo` privileges, by adding the following lines:
