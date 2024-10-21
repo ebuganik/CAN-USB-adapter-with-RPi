@@ -25,7 +25,7 @@ This repository is part of an undergraduate thesis project at the Faculty of Ele
 - USB to TTL Serial 3.3V Adapter Cable for serial communication
 - PCAN-USB (optional, in this case used for testing purpose to verify sending/receiving frames)
 ## Cloning the repository
-This repository includes submodules for *WiringPi* and *nlohmann/json* libraries. To ensure you get all the necessary components, follow this step to clone the repository along with its submodules:
+This repository includes submodules for *wiringPi* and *nlohmann/json* libraries. To ensure you get all the necessary components, follow this step to clone the repository along with its submodules:
 ```
  git clone --recurse-submodules --remote-submodules https://github.com/ebuganik/CAN-USB-adapter-with-RPi.git
 ```
@@ -118,19 +118,14 @@ After cloning the repository, the C++ application for the Raspberry Pi will be l
 ```
 sudo apt-get install libsocketcan-dev
 ```
-Additionally, the application utilizes the *wiringpi* library to control the LED during the execution of read, write, and periodic write operations, which also requires necessary installation. In this repository, *wiringpi* was located in `rpi/project/ext_lib` and included in both the C++ application files and the Makefile. Here are the steps to successfully clone and build the *wiringpi* content to link with this application:
-```
-git clone https://github.com/WiringPi/WiringPi
-cd WiringPi
-./build
-```
+Additionally, the application utilizes the *wiringPi* library to control the LED during read, write, and periodic write operations and *nlohmann/json* to work with serial requests and answers sent as JSON strings. These libraries are located in `rpi/project/ext_lib/` as git submodules and were included when this repository was cloned.
 
 Once the library is installed, navigate to the `rpi/project` folder and use the `Makefile` to compile application using next command:
 ```
 cd rpi/project
 make
 ```
-The Makefile will manage the compilation and linking of the `libsocketcan` and `wiringpi` libraries along with any additional dependencies, taking `can0` as the CAN interface name by default. If an additional SPI device (MCP2515) is connected to the Raspberry Pi's SPI0 pins as previously explained, after uncommenting the specified line in the `/boot/config.txt` file (don't forget to `sudo reboot` again), you can invoke the make command as follows:
+The Makefile will manage the compilation and linking of the `libsocketcan`,`wiringPi` and `nlohmann/json` libraries along with any additional dependencies, taking `can0` as the CAN interface name by default. If an additional SPI device (MCP2515) is connected to the Raspberry Pi's SPI0 pins as previously explained, after uncommenting the specified line in the `/boot/config.txt` file (don't forget to `sudo reboot` again), you can invoke the make command as follows:
 
 ```
 make run CAN_INTERFACE_NAME=can1
