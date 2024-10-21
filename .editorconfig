@@ -1,0 +1,20 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+[*]
+indent_style = space
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.cpp]
+indent_size = 4  # Indentation size for C++ files
+
+[*.h]
+indent_size = 4  # Indentation size for header files
+
+[*.py]
+indent_size = 4  # Recommended size according to PEP 8 for Python
+
+[Makefile*]
+indent_style = tab  # Use tabs for Makefile
