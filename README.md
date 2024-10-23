@@ -122,6 +122,32 @@ The Makefile will manage the compilation and linking of the `libsocketcan` and `
 make run CAN_INTERFACE_NAME=can1
 ```
 After successful compilation, the C++ application will run on the Raspberry Pi, enabling it to interact with the CAN bus after first write/read request from serial port. 
+
+The project also includes an `rpi_pcan.service` file that can be adjusted by the user according to their needs. The following parameters can be modified:
+- The path to the executable in the  `ConditionFileIsExecutable` variable
+- The working directory in the `WorkingDirectory` variable
+- The CAN interface name in `ExecStart` variable
+
+By setting this up, the application can be run as a service, allowing it to automatically start, stop, and restart as needed by the system.
+
+To install service and run it, execute next command:
+```
+make service_install_run
+```
+Output should look like this:
+```
+sudo cp ./rpi_pcan.service /etc/systemd/system
+sudo systemctl enable rpi_pcan.service
+Created symlink /etc/systemd/system/multi-user.target.wants/rpi_pcan.service → /etc/systemd/system/rpi_pcan.service.
+```
+Status of service can be checked using next command:
+```
+systemctl status rpi_pcan.service
+```
+To view logging details, use:
+```
+journalctl -fu rpi_pcan.service
+```
 ### PCAN View (optional)
 The PCAN-View application was used for testing message transmission and reception on the CAN bus. If you have a PCAN-USB device available, you can download the latest version of the PEAKCAN View application for Windows from PEAK System [PEAK System](https://www.peak-system.com/?&L=1) and run the installer. Start the PEAKCAN View, configure the CAN interface and intended bitrate to start communication.
 
