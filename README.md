@@ -118,7 +118,12 @@ After cloning the repository, the C++ application for the Raspberry Pi will be l
 ```
 sudo apt-get install libsocketcan-dev
 ```
-Additionally, the application utilizes the *wiringPi* library to control the LED during read, write, and periodic write operations and *nlohmann/json* to work with serial requests and answers sent as JSON strings. These libraries are located in `rpi/project/ext_lib/` as git submodules and were included when this repository was cloned.
+Additionally, the application utilizes the *wiringPi* library to control the LED during read, write, and periodic write operations and *nlohmann/json* to work with serial requests and answers sent as JSON strings. These libraries are located in `rpi/project/ext_lib/` as git submodules and were included when this repository was cloned. 
+Before continuing with work, it's necessary to build *wiringPi* library:
+```
+cd rpi/project/ext_lib/rpi_lib
+./build
+```
 
 Once the library is installed, navigate to the `rpi/project` folder and use the `Makefile` to compile application using next command:
 ```
