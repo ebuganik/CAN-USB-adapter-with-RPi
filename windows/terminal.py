@@ -210,21 +210,28 @@ def read_input():
                 try:
                     bitrate = int(input("Enter desired bitrate: ").strip())
                     if bitrate not in add.PCAN_BITRATES:
-                        raise ValueError(
-                            f"Unsupported bitrate. Choose one of the supported bitrates."
-                        )
+                        raise ValueError(f"Unsupported bitrate. Choose one of the supported bitrates.")
                     break
                 except ValueError as e:
                     print(f"Error: {e}")
 
             while True:
                 try:
+                    frame_type = input("Standard format frame (type 'SFF') or Extended (type 'EFF')? ").strip().upper()
+                    if frame_type not in ["SFF", "EFF"]:
+                        raise ValueError("Invalid frame type. Please enter 'SFF' or 'EFF'.")
                     can_id = input("Enter CAN ID as hex value: ").strip()
                     can_id = int(can_id, 16)
-                    if not (0 <= can_id <= 2047):  
-                        raise ValueError("Not a valid CAN ID.")
-                    formatted_id = f"0x{can_id:03X}"
-                    break  
+                    if(frame_type == "SFF"):
+                        if not (0x0 <= can_id <= 0x7FF):  
+                            raise ValueError("Not a valid Standard format frame CAN ID.")
+                        formatted_id = f"0x{can_id:03X}"
+                        break 
+                    if(frame_type == "EFF"):
+                        if not (0x0 <= can_id <= 0x1FFFFFFF):  
+                            raise ValueError("Not a valid Extended format frame CAN ID.")
+                        formatted_id = f"0x{can_id:08X}"
+                        break 
                 except ValueError as e:
                     print(f"Error: {e}")
 
@@ -263,6 +270,7 @@ def read_input():
                       
             json_data.update(
                 {
+                    "frame_format": frame_type,
                     "can_id": formatted_id,
                     "bitrate": bitrate,
                     "dlc": dlc,
@@ -305,9 +313,7 @@ def read_input():
             if mask == "Y":
                 while True:
                     try:
-                        can_ids = input(
-                            "Input CAN ID hex bytes, separated by spaces e.g. 11 22 33: "
-                        ).strip()
+                        can_ids = input("Input CAN ID hex bytes, separated by spaces e.g. 11 22 33: ").strip()
                         can_id_bytes = can_ids.split()
                         for id in can_id_bytes:
                             if not (0 <= int(id) <= 2047):
@@ -316,7 +322,7 @@ def read_input():
                     except ValueError as e:
                         print(f"Error: {e}")
                         continue
-
+                    
                     try:
                         can_id_hex = [int(b, 16) for b in can_id_bytes]
                         formatted_can_ids = [f"0x{byte:02X}" for byte in can_id_hex]
