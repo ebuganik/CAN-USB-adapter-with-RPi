@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/select.h>
+#include <thread>
 #include <chrono>
 
 using namespace std::chrono;
@@ -70,7 +71,7 @@ void CANHandler::canSendPeriod(const struct can_frame &frame, int *cycle)
 {
     syslog(LOG_DEBUG, "Started canSendPeriod function call.");
     Serial inform;
-    int res = can_get_state(m_ifname, &m_state);
+    can_get_state(m_ifname, &m_state);
     if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
         inform.sendStatusMessage(StatusCode::NODE_STATUS, "Unable to send data, BUS OFF! Restarting interface...");
@@ -134,7 +135,7 @@ void CANHandler::canSend(const struct can_frame &frame)
 {
     syslog(LOG_DEBUG, "Started canSend function call.");
     Serial inform;
-    int res = can_get_state(m_ifname, &m_state);
+    can_get_state(m_ifname, &m_state);
     if (m_state == CAN_STATE_BUS_OFF || m_state == CAN_STATE_ERROR_WARNING)
     {
         inform.sendStatusMessage(StatusCode::NODE_STATUS, "Unable to send data, bus off! Restarting interface...");
@@ -175,7 +176,20 @@ std::vector<int> CANHandler::parsePayload(const std::string &payload)
 struct can_frame CANHandler::unpackWriteReq(const json &request)
 {
     can_frame packedFrame;
-    packedFrame.can_id = std::stoi(request["can_id"].get<std::string>(), nullptr, 16);
+    /* Check if it is SFF or EFF received in serial request */
+    if (request.contains("frame_format") && request["frame_format"] == "EFF")
+    {
+        syslog(LOG_INFO, "Extended Format Frame received.");
+        packedFrame.can_id |= CAN_EFF_MASK;
+        packedFrame.can_id = std::stoi(request["can_id"].get<std::string>(), nullptr, 16);
+        std::cout << packedFrame.can_id << std::endl;
+    }
+    else
+    {
+        syslog(LOG_INFO, "Standard Format Frame received.");
+        packedFrame.can_id = std::stoi(request["can_id"].get<std::string>(), nullptr, 16);
+    }
+
     packedFrame.can_dlc = request["dlc"];
     auto payload = request["payload"].get<std::string>();
     auto parsedPayload = parsePayload(payload);
@@ -200,7 +214,6 @@ int CANHandler::canRead()
 {
     syslog(LOG_DEBUG, "Started canRead function call.");
     Serial inform;
-    int res;
     struct can_frame readFrame;
     /* To set timeout in read function */
     struct timeval timeout;
@@ -238,7 +251,7 @@ int CANHandler::canRead()
             if (read(m_socketfd, &readFrame, sizeof(struct can_frame)))
             {
                 blinkLed(17, 1000);
-                res = can_get_state(m_ifname, &m_state);
+                can_get_state(m_ifname, &m_state);
 
                 if (m_state == CAN_STATE_ERROR_ACTIVE)
                 {
