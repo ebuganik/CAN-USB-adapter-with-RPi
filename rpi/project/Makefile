@@ -1,4 +1,4 @@
-TARGET = main
+TARGET = rpi_pcan_bin
 CXX = g++
 LIBS = -lsocketcan -L../ext_lib/rpi_lib/WiringPi/wiringPi -lwiringPi
 CXXFLAGS = -Wall -g -I../ext_lib/json_lib/single_include -I../ext_lib/rpi_lib/wiringPi/wiringPi
@@ -30,6 +30,11 @@ setcaps:
 
 run: $(TARGET) setcaps
 	sudo ./$(TARGET) $(CAN_INTERFACE_NAME)
+
+service_install_run: $(TARGET)
+	sudo cp ./rpi_pcan.service /etc/systemd/system
+	sudo systemctl enable rpi_pcan.service
+	sudo systemctl start rpi_pcan.service
 
 # Clean rule to remove generated files
 .PHONY: clean

@@ -1,0 +1,13 @@
+[Unit]
+Description=Custom PCAN service
+ConditionFileIsExecutable=/home/emanuela/CAN-USB-adapter-with-RPi/rpi/project/rpi_pcan_bin
+ 
+[Service]
+Type=simple
+WorkingDirectory=/home/emanuela/CAN-USB-adapter-with-RPi/rpi/project/
+User=root
+Group=root
+ExecStart=/bin/bash -c '/home/emanuela/CAN-USB-adapter-with-RPi/rpi/project/rpi_pcan_bin can0'
+ 
+[Install]
+WantedBy=multi-user.target
