@@ -20,7 +20,7 @@ def show_manual():
     Opens and displays the user manual from 'manual.txt'.
 
     This function attempts to open the 'manual.txt' file and print its contents.
-    
+
     Raises:
     -------
     FileNotFoundError
@@ -126,11 +126,11 @@ def read_input():
     Inputs write/read request parameters and combines them into a JSON string.
 
     This function prompts the user to enter a operation command ('write' or 'read' and the corresponding
-    parameters) or CTRL+C to interrupt application and '--man' to read user manual. 
+    parameters) or CTRL+C to interrupt application and '--man' to read user manual.
     It formats the parameters into a JSON string for serial communication, so chosen request
     parameters are displayed later to the user before sending the request to serial port.
-    
-    The function also allows user to repeat previous 'read' or 'write' request if exists. Also, 
+
+    The function also allows user to repeat previous 'read' or 'write' request if exists. Also,
     user is able to select the bitrate from the available bitrate values in PEAKCAN_BITRATES dictionary.
 
     JSON string format for 'write' request:
@@ -143,7 +143,7 @@ def read_input():
         "payload": "[0x<byte1>, 0x<byte2>, ...]",
         "cycle_ms": <cycle_time> (optional)
     }
-    
+
     To send a write request via serial, JSON string should be packed as following:
     -----------------------------------------------
     'R"({"method":"write","bitrate":<bitrate>,"can_id":"0x<can_id>","dlc":<dlc>,"payload":"[0x<byte1>,0x<byte2>,0x<bytes3>]"})"'
@@ -157,7 +157,7 @@ def read_input():
         "can_id": "[0x<can_id1>, 0x<can_id2>, ...]" (optional),
         "can_mask": "[0x<mask1>, 0x<mask2>, ...]" (optional)
     }
-    
+
     To send a read request via serial, JSON string should be packed as following:
     ----------------------------------------------
     'R"({"method":"read","bitrate":<bitrate>})"'
@@ -165,7 +165,7 @@ def read_input():
     To send a read request with enabled filtering via serial, JSON string should be packed as following:
     --------------------------------------------------------------------------------
     'R"({"method":"read","bitrate":<can_id>, "can_id": "[0x<can_id1>, 0x<can_id2>]", "can_mask": "[0x<mask1>, 0x<mask2>]"})"'
-    
+
     Returns:
     --------
     str or None
@@ -189,7 +189,7 @@ def read_input():
 
     json_data = {"method": command}
 
-    
+
     if command == "write":
         try:
             if write_dict.__len__() > 0:
@@ -197,10 +197,10 @@ def read_input():
                     repeat = input("Repeat last write request? (Y/N): ").strip().upper()
                     if repeat == "Y":
                         res_w = repeat_request(command)
-                        json_send = f'R"({res_w})"' 
+                        json_send = f'R"({res_w})"'
                         json_send += "\n"
                         return json_send
-                    
+
             pcan_bitrates_str = "\n ".join(
                 [f"{rate} bps ({add.PCAN_BITRATES[rate]})" for rate in add.PCAN_BITRATES]
             )
@@ -217,66 +217,83 @@ def read_input():
 
             while True:
                 try:
-                    frame_type = input("Standard format frame (type 'SFF') or Extended (type 'EFF')? ").strip().upper()
-                    if frame_type not in ["SFF", "EFF"]:
-                        raise ValueError("Invalid frame type. Please enter 'SFF' or 'EFF'.")
-                    can_id = input("Enter CAN ID as hex value: ").strip()
-                    can_id = int(can_id, 16)
-                    if(frame_type == "SFF"):
-                        if not (0x0 <= can_id <= 0x7FF):  
-                            raise ValueError("Not a valid Standard format frame CAN ID.")
-                        formatted_id = f"0x{can_id:03X}"
-                        break 
-                    if(frame_type == "EFF"):
-                        if not (0x0 <= can_id <= 0x1FFFFFFF):  
-                            raise ValueError("Not a valid Extended format frame CAN ID.")
+                    frame_type = input("Standard format frame (type 'SFF') or Extended (type 'EFF') or Remote Transfer Frame (type 'RTR')? ").strip().upper()
+                    if frame_type not in ["SFF", "EFF", "RTR"]:
+                        raise ValueError("Invalid frame type. Please enter 'SFF','EFF' or 'RTR'.")
+
+                    if frame_type == "RTR":
+                        can_id = input("Enter CAN ID as hex value: ").strip()
+                        can_id = int(can_id, 16)
+                        if not (0x0 <= can_id <= 0x1FFFFFFF):
+                            raise ValueError("Not a valid CAN ID for an RTR frame.")
                         formatted_id = f"0x{can_id:08X}"
-                        break 
+                        json_data.update(
+                            {
+                                "frame_format": frame_type,
+                                "can_id": formatted_id,
+                                "bitrate": bitrate,
+                            })
+                        break
+
+                    else:
+                        can_id = input("Enter CAN ID as hex value: ").strip()
+                        can_id = int(can_id, 16)
+                        if(frame_type == "SFF"):
+                            if not (0x0 <= can_id <= 0x7FF):
+                                raise ValueError("Not a valid Standard format frame CAN ID.")
+                            formatted_id = f"0x{can_id:03X}"
+                            break
+
+                        if(frame_type == "EFF"):
+                            if not (0x0 <= can_id <= 0x1FFFFFFF):
+                                raise ValueError("Not a valid Extended format frame CAN ID.")
+                            formatted_id = f"0x{can_id:08X}"
+                            break
                 except ValueError as e:
                     print(f"Error: {e}")
 
-            while True:
-                try:
-                    dlc = int(input("Enter CAN DLC (Data Length Code): ").strip())
-                    if not (0 <= dlc <= 8): 
-                        raise ValueError("Not a valid CAN DLC.")
+
+            if frame_type != "RTR":
+                while True:
+                    try:
+                        dlc = int(input("Enter CAN DLC (Data Length Code): ").strip())
+                        if not (0 <= dlc <= 8):
+                            raise ValueError("Not a valid CAN DLC.")
+                        break
+                    except ValueError as e:
+                        print(f"Error: {e}")
+
+                while True:
+                    payload = input(
+                        "Input payload hex bytes, separated by spaces e.g. 11 22 33: ").strip()
+                    can_id_bytes = payload.split()
+                    if len(can_id_bytes) != dlc:
+                        print(f"Error: Payload length does not match DLC. Expected {dlc} bytes, got {len(can_id_bytes)} bytes.")
+                        continue
+
+                    try:
+                        can_id_hex = [int(b, 16) for b in can_id_bytes]
+                        formatted_can_id = [f"0x{byte:02X}" for byte in can_id_hex]
+                        formatted_payload = "[" + ",".join(formatted_can_id) + "]"
+                    except ValueError:
+                        print("Error: All bytes must be valid hexadecimal values.")
+                        continue
                     break
-                except ValueError as e:
-                    print(f"Error: {e}")
 
-            while True:
-                payload = input(
-                    "Input payload hex bytes, separated by spaces e.g. 11 22 33: ").strip()
-                can_id_bytes = payload.split()
-                if len(can_id_bytes) != dlc:
-                    print(
-                        f"Error: Payload length does not match DLC. Expected {dlc} bytes, got {len(can_id_bytes)} bytes."
-                    )
-                    continue
+                cycle = input("Add frame cycle time? Y/N: ").strip().upper()
+                if cycle == "Y":
+                    cycle_time = int(input("Enter cycle time in ms: ").strip())
+                    json_data.update({"cycle_ms": cycle_time})
 
-                try:
-                    can_id_hex = [int(b, 16) for b in can_id_bytes]
-                    formatted_can_id = [f"0x{byte:02X}" for byte in can_id_hex]
-                    formatted_payload = "[" + ",".join(formatted_can_id) + "]"
-                except ValueError:
-                    print("Error: All bytes must be valid hexadecimal values.")
-                    continue
-                break
-            
-            cycle = input("Add frame cycle time? Y/N: ").strip().upper()     
-            if cycle == "Y":
-                cycle_time = int(input("Enter cycle time in ms: ").strip())
-                json_data.update({"cycle_ms": cycle_time})
-                      
-            json_data.update(
-                {
-                    "frame_format": frame_type,
-                    "can_id": formatted_id,
-                    "bitrate": bitrate,
-                    "dlc": dlc,
-                    "payload": formatted_payload,
-                }
-            )
+                json_data.update(
+                    {
+                        "frame_format": frame_type,
+                        "can_id": formatted_id,
+                        "bitrate": bitrate,
+                        "dlc": dlc,
+                        "payload": formatted_payload,
+                    }
+                )
 
         except ValueError as e:
             print(f"Error: {e}")
@@ -322,7 +339,7 @@ def read_input():
                     except ValueError as e:
                         print(f"Error: {e}")
                         continue
-                    
+
                     try:
                         can_id_hex = [int(b, 16) for b in can_id_bytes]
                         formatted_can_ids = [f"0x{byte:02X}" for byte in can_id_hex]
